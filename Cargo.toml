@@ -1,0 +1,15 @@
+[package]
+name = "mqtt-analyzer"
+description = "Help analyzing MQTT messages"
+version = "1.0.0"
+authors = ["Alessandro Pezzato <alessandro@pezzato.net>"]
+edition = "2018"
+repository = "https://github.com/alepez/mqtt-analyzer"
+keywords = ["mqtt"]
+license = "MIT"
+
+[dependencies]
+rumqtt = "0.31.0"
+clap = "2.33.0"
+hex = "0.3.1"
+colored = "1.8"
