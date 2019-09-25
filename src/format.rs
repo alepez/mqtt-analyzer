@@ -28,7 +28,7 @@ pub fn format_payload_text(payload: &[u8]) -> String {
 }
 
 pub fn format_payload_base64(payload: &[u8]) -> String {
-    hex::encode(payload)
+    base64::encode(payload)
 }
 
 pub fn format_payload(format: PayloadFormat, payload: &[u8]) -> String {

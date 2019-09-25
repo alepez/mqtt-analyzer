@@ -16,7 +16,6 @@ fn format_payload_text_non_utf8() {
 }
 
 #[test]
-#[ignore]
 fn format_payload_base64_non_empty() {
     assert_eq!(format_payload(PayloadFormat::Base64, b"ciao"), "Y2lhbw==");
 }

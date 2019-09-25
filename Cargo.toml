@@ -9,7 +9,8 @@ keywords = ["mqtt"]
 license = "MIT"
 
 [dependencies]
-rumqtt = "0.31.0"
+base64 = "0.10.1"
 clap = "2.33.0"
-hex = "0.3.1"
 colored = "1.8"
+hex = "0.3.1"
+rumqtt = "0.31.0"
