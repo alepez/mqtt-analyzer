@@ -62,7 +62,7 @@ pub fn parse_options() -> Options {
         .arg(Arg::with_name("format")
             .long("format")
             .value_name("FORMAT")
-            .help("The format to use to show payload. If text is non valid utf8, it fallbacks to hex.")
+            .help("The format to use to show payload. If text is non valid utf8, it falls back to hex.")
             .takes_value(true)
             .possible_values(&["hex", "base64", "text"])
         )
@@ -93,7 +93,8 @@ pub fn parse_options() -> Options {
         _ => PayloadFormat::Hex,
     };
 
-    let message_format = MessageFormat { payload_format };
+    let mut message_format = MessageFormat::default();
+    message_format.payload_format = payload_format;
 
     Options {
         mqtt: MqttOptions::new(client_id, hostname, port).set_security_opts(security_options),

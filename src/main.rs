@@ -9,7 +9,7 @@ use colored::Colorize;
 use rumqtt::{MqttClient, Notification, QoS};
 
 use crate::cli::parse_options;
-use crate::format::{format_message, MessageFormat};
+use crate::format::format_message;
 
 mod cli;
 mod format;
