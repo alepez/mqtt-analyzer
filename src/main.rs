@@ -8,8 +8,8 @@ use std::io::{self, Write};
 use colored::Colorize;
 use rumqtt::{MqttClient, Notification, QoS};
 
-use cli::parse_options;
-use format::format_message;
+use crate::cli::parse_options;
+use crate::format::{format_message, MessageFormat};
 
 mod cli;
 mod format;
@@ -32,7 +32,7 @@ fn main() {
         match notification {
             Notification::Publish(msg) => {
                 io::stdout()
-                    .write_all(format_message(&msg).as_bytes())
+                    .write_all(format_message(MessageFormat::default(), &msg).as_bytes())
                     .unwrap();
             }
             Notification::Disconnection => {
