@@ -1,9 +1,12 @@
 use clap::{App, Arg};
 use rumqtt::{MqttOptions, SecurityOptions};
 
+use crate::format::{MessageFormat, PayloadFormat};
+
 pub struct Options {
     pub mqtt: MqttOptions,
     pub topics: Vec<String>,
+    pub format: MessageFormat,
 }
 
 pub fn parse_options() -> Options {
@@ -56,6 +59,13 @@ pub fn parse_options() -> Options {
             .takes_value(true)
             .multiple(true)
         )
+        .arg(Arg::with_name("format")
+            .long("format")
+            .value_name("FORMAT")
+            .help("The format to use to show payload. If text is non valid utf8, it fallbacks to hex.")
+            .takes_value(true)
+            .possible_values(&["hex", "base64", "text"])
+        )
         .get_matches();
 
     let hostname = matches.value_of("hostname").unwrap();
@@ -76,8 +86,18 @@ pub fn parse_options() -> Options {
         SecurityOptions::None
     };
 
+    let payload_format = match matches.value_of("format") {
+        Some("hex") => PayloadFormat::Hex,
+        Some("text") => PayloadFormat::Text,
+        Some("base64") => PayloadFormat::Base64,
+        _ => PayloadFormat::Hex,
+    };
+
+    let message_format = MessageFormat { payload_format };
+
     Options {
         mqtt: MqttOptions::new(client_id, hostname, port).set_security_opts(security_options),
         topics,
+        format: message_format,
     }
 }

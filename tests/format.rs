@@ -12,7 +12,10 @@ fn format_payload_text_non_empty() {
 
 #[test]
 fn format_payload_text_non_utf8() {
-    assert_eq!(format_payload(PayloadFormat::Text, b"\xf1\xf2\xf4\xf7"), "f1f2f4f7");
+    assert_eq!(
+        format_payload(PayloadFormat::Text, b"\xf1\xf2\xf4\xf7"),
+        "f1f2f4f7"
+    );
 }
 
 #[test]

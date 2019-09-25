@@ -18,6 +18,7 @@ fn main() {
     let options = parse_options();
 
     let cli::Options {
+        format: format_options,
         mqtt: mqtt_options,
         topics,
     } = options;
@@ -32,7 +33,7 @@ fn main() {
         match notification {
             Notification::Publish(msg) => {
                 io::stdout()
-                    .write_all(format_message(MessageFormat::default(), &msg).as_bytes())
+                    .write_all(format_message(format_options, &msg).as_bytes())
                     .unwrap();
             }
             Notification::Disconnection => {

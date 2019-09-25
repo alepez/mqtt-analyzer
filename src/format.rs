@@ -1,18 +1,22 @@
 use colored::*;
 
+#[derive(Copy, Clone)]
 pub enum PayloadFormat {
     Text,
     Hex,
     Base64,
 }
 
+#[derive(Copy, Clone)]
 pub struct MessageFormat {
-    payload_format: PayloadFormat,
+    pub payload_format: PayloadFormat,
 }
 
 impl MessageFormat {
     pub fn default() -> Self {
-        MessageFormat { payload_format: PayloadFormat::Text }
+        MessageFormat {
+            payload_format: PayloadFormat::Text,
+        }
     }
 }
 
