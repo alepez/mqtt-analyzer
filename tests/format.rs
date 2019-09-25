@@ -13,6 +13,7 @@ fn format_payload_text_non_empty() {
 #[test]
 fn format_payload_text_with_special_chars_non_empty() {
     assert_eq!(format_payload(PayloadFormat::Text, b"{ciao?"), "{ciao?");
+    println!("{} == {}", format_payload(PayloadFormat::Text, b"{ciao?"), "{ciao?");
 }
 
 #[test]
@@ -29,7 +30,6 @@ fn format_payload_text_non_utf8() {
 }
 
 #[test]
-#[ignore]
 fn format_payload_text_non_printable() {
     assert_eq!(
         format_payload(PayloadFormat::Text, b"\tc\ni\0a\ro"),

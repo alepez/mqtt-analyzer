@@ -25,9 +25,16 @@ pub fn format_payload_hex(payload: &[u8]) -> String {
     hex::encode(payload)
 }
 
+fn escape_only_non_printable(text: String) -> String {
+    text.chars().map(|c| match c {
+        '!'..='~' => c.to_string(),
+        _ => c.escape_debug().to_string(),
+    }).collect()
+}
+
 pub fn format_payload_text(payload: &[u8]) -> String {
     match String::from_utf8(payload.to_vec()) {
-        Result::Ok(text) => text.to_string(),
+        Result::Ok(text) => escape_only_non_printable(text),
         _ => format_payload_hex(payload),
     }
 }
@@ -54,6 +61,6 @@ pub fn format_payload(format: PayloadFormat, payload: &[u8]) -> String {
 
 pub fn format_message(format: MessageFormat, msg: &rumqtt::Publish) -> String {
     let payload = format_payload(format.payload_format, msg.payload.as_ref());
-    let colored_topic  = msg.topic_name.blue();
+    let colored_topic = msg.topic_name.blue();
     colored_topic.to_string() + " " + payload.as_str()
 }
