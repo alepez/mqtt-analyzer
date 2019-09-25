@@ -1,5 +1,11 @@
 # MQTT Analyzer
 
+This is a command line tool that helps you analyze MQTT messages.
+
+## Features
+
+Now it is a simpler version of *mosquitto_pub*, with similar parameters.
+
 ```
 USAGE:
     mqtt-analyzer [OPTIONS]
@@ -18,3 +24,12 @@ OPTIONS:
     -u, --username <USERNAME>    Provide a username to be used for authenticating with the broker. See also the --pw
                                  argument
 ```
+
+## Future developement
+
+ - [ ] rich terminal user interface
+ - [ ] different format for topic (base16, base64, raw, hybrid)
+ - [ ] statistics (occurrences, frequency, etc...)
+ - [ ] regular expression filter on payload
+ - [ ] extensible custom formatting
+ - [ ] tree navigation on topics
