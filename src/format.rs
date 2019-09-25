@@ -1,10 +1,10 @@
 use colored::*;
 
-pub fn format_payload(payload: &[u8]) -> String {
+pub fn format_payload_hex(payload: &[u8]) -> String {
     hex::encode(payload)
 }
 
 pub fn format_message(msg: &rumqtt::Publish) -> String {
-    let payload = format_payload(msg.payload.as_ref());
+    let payload = format_payload_hex(msg.payload.as_ref());
     format!("{} {}\n", msg.topic_name.blue(), payload)
 }

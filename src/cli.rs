@@ -66,7 +66,9 @@ pub fn parse_options() -> Options {
 
     let client_id = matches.value_of("client_id").unwrap_or("FIXME");
 
-    let topics: Vec<String> = matches.values_of("topic").map_or(vec![], |values| values.map(|s| s.to_string()).collect());
+    let topics: Vec<String> = matches
+        .values_of("topic")
+        .map_or(vec![], |values| values.map(|s| s.to_string()).collect());
 
     let security_options = if let (Some(u), Some(p)) = (username, password) {
         SecurityOptions::UsernamePassword(u.to_string(), p.to_string())

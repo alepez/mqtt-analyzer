@@ -5,11 +5,11 @@ extern crate hex;
 
 use std::io::{self, Write};
 
-use colored::*;
+use colored::Colorize;
 use rumqtt::{MqttClient, Notification, QoS};
 
 use cli::parse_options;
-use format::*;
+use format::format_message;
 
 mod cli;
 mod format;
@@ -17,7 +17,11 @@ mod format;
 fn main() {
     let options = parse_options();
 
-    let cli::Options { mqtt: mqtt_options, topics } = options;
+    let cli::Options {
+        mqtt: mqtt_options,
+        topics,
+    } = options;
+
     let (mut client, notifications) = MqttClient::start(mqtt_options).unwrap();
 
     for topic in topics.iter() {
@@ -27,7 +31,9 @@ fn main() {
     for notification in notifications {
         match notification {
             Notification::Publish(msg) => {
-                io::stdout().write_all(format_message(&msg).as_bytes()).unwrap();
+                io::stdout()
+                    .write_all(format_message(&msg).as_bytes())
+                    .unwrap();
             }
             Notification::Disconnection => {
                 println!("{}", "Disconnected!".red());
@@ -35,7 +41,7 @@ fn main() {
             Notification::Reconnection => {
                 println!("{}", "Connected!".green());
             }
-            _ => ()
+            _ => (),
         }
     }
 }
