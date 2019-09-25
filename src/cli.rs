@@ -64,7 +64,7 @@ pub fn parse_options() -> Options {
             .value_name("FORMAT")
             .help("The format to use to show payload. If text is non valid utf8, it falls back to hex.")
             .takes_value(true)
-            .possible_values(&["hex", "base64", "text"])
+            .possible_values(&["hex", "base64", "text", "escape"])
         )
         .get_matches();
 
@@ -90,6 +90,7 @@ pub fn parse_options() -> Options {
         Some("hex") => PayloadFormat::Hex,
         Some("text") => PayloadFormat::Text,
         Some("base64") => PayloadFormat::Base64,
+        Some("escape") => PayloadFormat::Escape,
         _ => PayloadFormat::Hex,
     };
 

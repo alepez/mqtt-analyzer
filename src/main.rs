@@ -32,9 +32,11 @@ fn main() {
     for notification in notifications {
         match notification {
             Notification::Publish(msg) => {
+                let line = format_message(format_options, &msg) + "\n";
                 io::stdout()
-                    .write_all(format_message(format_options, &msg).as_bytes())
+                    .write_all(line.as_bytes())
                     .unwrap();
+                io::stdout().flush();
             }
             Notification::Disconnection => {
                 println!("{}", "Disconnected!".red());
