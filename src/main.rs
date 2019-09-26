@@ -4,18 +4,22 @@ extern crate colored;
 extern crate hex;
 
 use ::std::io::{self, Write};
+
 use ::colored::Colorize;
 use ::rumqtt::{MqttClient, Notification, QoS, Receiver};
 
 use crate::cli::parse_options;
 use crate::format::{format_message, MessageFormat};
-use crate::tui::{start_tui};
+use crate::tui::start_tui;
 
 mod cli;
 mod format;
 mod tui;
 
-fn start_stream(notifications: Receiver<Notification>, format_options: MessageFormat) -> Result<(), io::Error> {
+fn start_stream(
+    notifications: Receiver<Notification>,
+    format_options: MessageFormat,
+) -> Result<(), failure::Error> {
     for notification in notifications {
         match notification {
             Notification::Publish(msg) => {
@@ -35,7 +39,7 @@ fn start_stream(notifications: Receiver<Notification>, format_options: MessageFo
     Ok(())
 }
 
-fn main() -> Result<(), io::Error> {
+fn main() -> Result<(), failure::Error> {
     let options = parse_options();
 
     let cli::Options {
