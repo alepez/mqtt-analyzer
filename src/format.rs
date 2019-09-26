@@ -26,10 +26,12 @@ pub fn format_payload_hex(payload: &[u8]) -> String {
 }
 
 fn escape_only_non_printable(text: String) -> String {
-    text.chars().map(|c| match c {
-        '!'..='~' => c.to_string(),
-        _ => c.escape_debug().to_string(),
-    }).collect()
+    text.chars()
+        .map(|c| match c {
+            '!'..='~' => c.to_string(),
+            _ => c.escape_debug().to_string(),
+        })
+        .collect()
 }
 
 pub fn format_payload_text(payload: &[u8]) -> String {

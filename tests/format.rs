@@ -13,12 +13,19 @@ fn format_payload_text_non_empty() {
 #[test]
 fn format_payload_text_with_special_chars_non_empty() {
     assert_eq!(format_payload(PayloadFormat::Text, b"{ciao?"), "{ciao?");
-    println!("{} == {}", format_payload(PayloadFormat::Text, b"{ciao?"), "{ciao?");
+    println!(
+        "{} == {}",
+        format_payload(PayloadFormat::Text, b"{ciao?"),
+        "{ciao?"
+    );
 }
 
 #[test]
 fn format_payload_text_with_unicode_non_empty() {
-    assert_eq!(format_payload(PayloadFormat::Text, "ciao❤".as_bytes()), "ciao❤");
+    assert_eq!(
+        format_payload(PayloadFormat::Text, "ciao❤".as_bytes()),
+        "ciao❤"
+    );
 }
 
 #[test]
@@ -44,5 +51,8 @@ fn format_payload_base64_non_empty() {
 
 #[test]
 fn format_payload_ascii_non_empty() {
-    assert_eq!(format_payload(PayloadFormat::Escape, "ciao❤".as_bytes(),), "ciao\\u{2764}");
+    assert_eq!(
+        format_payload(PayloadFormat::Escape, "ciao❤".as_bytes(),),
+        "ciao\\u{2764}"
+    );
 }

@@ -7,6 +7,7 @@ pub struct Options {
     pub mqtt: MqttOptions,
     pub topics: Vec<String>,
     pub format: MessageFormat,
+    pub tui: bool,
 }
 
 pub fn parse_options() -> Options {
@@ -66,6 +67,10 @@ pub fn parse_options() -> Options {
             .takes_value(true)
             .possible_values(&["hex", "base64", "text", "escape"])
         )
+        .arg(Arg::with_name("tui")
+            .long("tui")
+            .help("Enable Text User Interface")
+        )
         .get_matches();
 
     let hostname = matches.value_of("hostname").unwrap();
@@ -94,6 +99,8 @@ pub fn parse_options() -> Options {
         _ => PayloadFormat::Hex,
     };
 
+    let tui = matches.is_present("tui");
+
     let mut message_format = MessageFormat::default();
     message_format.payload_format = payload_format;
 
@@ -101,5 +108,6 @@ pub fn parse_options() -> Options {
         mqtt: MqttOptions::new(client_id, hostname, port).set_security_opts(security_options),
         topics,
         format: message_format,
+        tui,
     }
 }
