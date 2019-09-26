@@ -3,34 +3,17 @@ extern crate clap;
 extern crate colored;
 extern crate hex;
 
-use std::io::{self, Write};
-
-use colored::Colorize;
-use rumqtt::{MqttClient, Notification, QoS, Receiver};
-use termion::raw::IntoRawMode;
-use tui::backend::TermionBackend;
-use tui::Terminal;
-use tui::widgets::{Widget, Block, Borders};
-use tui::layout::{Layout, Constraint, Direction};
+use ::std::io::{self, Write};
+use ::colored::Colorize;
+use ::rumqtt::{MqttClient, Notification, QoS, Receiver};
 
 use crate::cli::parse_options;
 use crate::format::{format_message, MessageFormat};
+use crate::tui::{start_tui};
 
 mod cli;
 mod format;
-
-fn start_tui(notifications: Receiver<Notification>) -> Result<(), io::Error> {
-    let stdout = io::stdout().into_raw_mode()?;
-    let backend = TermionBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
-    terminal.draw(|mut f| {
-        let size = f.size();
-        Block::default()
-            .title("MQTT Analyzer")
-            .borders(Borders::ALL)
-            .render(&mut f, size);
-    })
-}
+mod tui;
 
 fn start_stream(notifications: Receiver<Notification>, format_options: MessageFormat) -> Result<(), io::Error> {
     for notification in notifications {
