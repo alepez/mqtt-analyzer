@@ -1,4 +1,6 @@
 use std::io::{self};
+use std::sync::mpsc;
+use std::thread;
 
 use rumqtt::{Notification, Receiver};
 use termion::event::Key;
@@ -6,7 +8,7 @@ use termion::input::MouseTerminal;
 use termion::raw::IntoRawMode;
 use termion::screen::AlternateScreen;
 use tui::backend::{Backend, TermionBackend};
-use tui::layout::{Constraint, Direction, Layout, Rect};
+use tui::layout::{Constraint, Corner, Direction, Layout, Rect};
 use tui::style::{Color, Style};
 use tui::widgets::{Block, Borders, List, Paragraph, Tabs, Text, Widget};
 use tui::{Frame, Terminal};
@@ -41,6 +43,7 @@ struct App {
     tabs: TabsState,
     subscriptions: Vec<String>,
     subscribe_input: String,
+    notifications: Vec<Notification>, // FIXME grow forever
 }
 
 impl Default for App {
@@ -54,6 +57,7 @@ impl Default for App {
             tabs: TabsState::new(tabs),
             subscriptions: Vec::new(),
             subscribe_input: String::new(),
+            notifications: Vec::new(),
         }
     }
 }
@@ -87,6 +91,20 @@ where
         .render(f, chunks[1]);
 }
 
+fn draw_stream_tab<B>(f: &mut Frame<B>, area: Rect, app: &mut App)
+where
+    B: Backend,
+{
+    let formatted_notifications = app
+        .notifications
+        .iter()
+        .map(|n| Text::raw(format!("{:?}", n)));
+
+    List::new(formatted_notifications)
+        .block(Block::default().borders(Borders::ALL))
+        .render(f, area);
+}
+
 pub fn start_tui(notifications: Receiver<Notification>) -> Result<(), failure::Error> {
     let stdout = io::stdout().into_raw_mode()?;
     let stdout = MouseTerminal::from(stdout);
@@ -98,6 +116,15 @@ pub fn start_tui(notifications: Receiver<Notification>) -> Result<(), failure::E
     let events = Events::new();
 
     let mut app = App::default();
+
+    {
+        let tx = events.tx();
+        thread::spawn(move || {
+            for notification in notifications {
+                tx.send(Event::MqttNotification(notification)).unwrap();
+            }
+        });
+    }
 
     loop {
         terminal.draw(|mut f| {
@@ -122,9 +149,7 @@ pub fn start_tui(notifications: Receiver<Notification>) -> Result<(), failure::E
 
             match app.tabs.index {
                 0 => draw_topics_tab(&mut f, chunks[1], &mut app),
-                1 => Block::default()
-                    .borders(Borders::ALL)
-                    .render(&mut f, chunks[1]),
+                1 => draw_stream_tab(&mut f, chunks[1], &mut app),
                 2 => Block::default()
                     .borders(Borders::ALL)
                     .render(&mut f, chunks[1]),
@@ -135,8 +160,8 @@ pub fn start_tui(notifications: Receiver<Notification>) -> Result<(), failure::E
             }
         })?;
 
-        if let Event::Input(key) = events.next()? {
-            match key {
+        match events.next()? {
+            Event::Input(input) => match input {
                 Key::Char('q') => {
                     break;
                 }
@@ -152,9 +177,12 @@ pub fn start_tui(notifications: Receiver<Notification>) -> Result<(), failure::E
                 Key::Backspace => {
                     app.subscribe_input.pop();
                 }
-
                 _ => {}
+            },
+            Event::MqttNotification(notification) => {
+                app.notifications.push(notification);
             }
+            _ => {}
         }
     }
     Ok(())

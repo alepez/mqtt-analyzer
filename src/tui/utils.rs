@@ -3,16 +3,14 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
 
-use rumqtt::{Notification, Receiver};
+use rumqtt::Notification;
 use termion::event::Key;
 use termion::input::TermRead;
-use tui::layout::{Constraint, Direction, Layout};
-use tui::style::{Color, Style};
-use tui::widgets::{Block, Borders, Tabs, Widget};
 
-pub enum Event<I> {
-    Input(I),
+pub enum Event {
+    Input(Key),
     Tick,
+    MqttNotification(Notification),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -67,19 +65,25 @@ impl Events {
             })
         };
         Events {
+            tx,
             rx,
             input_handle,
             tick_handle,
         }
     }
 
-    pub fn next(&self) -> Result<Event<Key>, mpsc::RecvError> {
+    pub fn next(&self) -> Result<Event, mpsc::RecvError> {
         self.rx.recv()
+    }
+
+    pub fn tx(&self) -> mpsc::Sender<Event> {
+        self.tx.clone()
     }
 }
 
 pub struct Events {
-    rx: mpsc::Receiver<Event<Key>>,
+    tx: mpsc::Sender<Event>,
+    rx: mpsc::Receiver<Event>,
     input_handle: thread::JoinHandle<()>,
     tick_handle: thread::JoinHandle<()>,
 }
