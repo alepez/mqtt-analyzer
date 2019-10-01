@@ -5,23 +5,23 @@ use termion::event::Key;
 use termion::input::MouseTerminal;
 use termion::raw::IntoRawMode;
 use termion::screen::AlternateScreen;
-use tui::backend::TermionBackend;
-use tui::layout::{Constraint, Direction, Layout};
+use tui::backend::{Backend, TermionBackend};
+use tui::layout::{Constraint, Direction, Layout, Rect};
 use tui::style::{Color, Style};
-use tui::widgets::{Block, Borders, Tabs, Widget};
-use tui::Terminal;
-
-mod utils;
+use tui::widgets::{Block, Borders, List, Paragraph, Tabs, Text, Widget};
+use tui::{Frame, Terminal};
 
 use utils::{Event, Events};
 
-pub struct TabsState<'a> {
-    pub titles: Vec<&'a str>,
+mod utils;
+
+pub struct TabsState {
+    pub titles: Vec<String>,
     pub index: usize,
 }
 
-impl<'a> TabsState<'a> {
-    pub fn new(titles: Vec<&'a str>) -> TabsState {
+impl TabsState {
+    pub fn new(titles: Vec<String>) -> TabsState {
         TabsState { titles, index: 0 }
     }
     pub fn next(&mut self) {
@@ -37,8 +37,54 @@ impl<'a> TabsState<'a> {
     }
 }
 
-struct App<'a> {
-    tabs: TabsState<'a>,
+struct App {
+    tabs: TabsState,
+    subscriptions: Vec<String>,
+    subscribe_input: String,
+}
+
+impl Default for App {
+    fn default() -> App {
+        let tabs = vec!["Subscriptions", "Stream", "Retain", "Statistics"]
+            .iter()
+            .map(|&s| String::from(s))
+            .collect();
+
+        App {
+            tabs: TabsState::new(tabs),
+            subscriptions: Vec::new(),
+            subscribe_input: String::new(),
+        }
+    }
+}
+
+fn draw_topics_tab<B>(f: &mut Frame<B>, area: Rect, app: &mut App)
+where
+    B: Backend,
+{
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(3), Constraint::Min(0)].as_ref())
+        .split(area);
+
+    Paragraph::new([Text::raw(&app.subscribe_input)].iter())
+        .style(Style::default().fg(Color::Yellow))
+        .block(Block::default().borders(Borders::ALL).title("Subscribe"))
+        .render(f, chunks[0]);
+
+    let messages = app
+        .subscriptions
+        .iter()
+        .enumerate()
+        .map(|(i, m)| Text::raw(format!("{}: {}", i, m)));
+
+    List::new(messages)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Subscriptions"),
+        )
+        .render(f, chunks[1]);
 }
 
 pub fn start_tui(notifications: Receiver<Notification>) -> Result<(), failure::Error> {
@@ -50,15 +96,13 @@ pub fn start_tui(notifications: Receiver<Notification>) -> Result<(), failure::E
     terminal.hide_cursor()?;
 
     let events = Events::new();
-    // App
-    let mut app = App {
-        tabs: TabsState::new(vec!["Topics", "Stream", "Retain", "Statistics"]),
-    };
 
-    // Main loop
+    let mut app = App::default();
+
     loop {
         terminal.draw(|mut f| {
             let size = f.size();
+
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([Constraint::Length(3), Constraint::Min(0)].as_ref())
@@ -67,6 +111,7 @@ pub fn start_tui(notifications: Receiver<Notification>) -> Result<(), failure::E
             Block::default()
                 .style(Style::default().bg(Color::White))
                 .render(&mut f, size);
+
             Tabs::default()
                 .block(Block::default().borders(Borders::ALL))
                 .titles(&app.tabs.titles)
@@ -74,10 +119,9 @@ pub fn start_tui(notifications: Receiver<Notification>) -> Result<(), failure::E
                 .style(Style::default().fg(Color::Cyan))
                 .highlight_style(Style::default().fg(Color::Yellow))
                 .render(&mut f, chunks[0]);
+
             match app.tabs.index {
-                0 => Block::default()
-                    .borders(Borders::ALL)
-                    .render(&mut f, chunks[1]),
+                0 => draw_topics_tab(&mut f, chunks[1], &mut app),
                 1 => Block::default()
                     .borders(Borders::ALL)
                     .render(&mut f, chunks[1]),
@@ -91,16 +135,26 @@ pub fn start_tui(notifications: Receiver<Notification>) -> Result<(), failure::E
             }
         })?;
 
-        match events.next()? {
-            Event::Input(key) => match key {
+        if let Event::Input(key) = events.next()? {
+            match key {
                 Key::Char('q') => {
                     break;
                 }
                 Key::Right => app.tabs.next(),
                 Key::Left => app.tabs.previous(),
+                Key::Char('\n') => {
+                    app.subscriptions
+                        .push(app.subscribe_input.drain(..).collect());
+                }
+                Key::Char(c) => {
+                    app.subscribe_input.push(c);
+                }
+                Key::Backspace => {
+                    app.subscribe_input.pop();
+                }
+
                 _ => {}
-            },
-            _ => {}
+            }
         }
     }
     Ok(())
