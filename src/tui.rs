@@ -11,8 +11,31 @@ use termion::raw::IntoRawMode;
 use termion::screen::AlternateScreen;
 use tui::backend::TermionBackend;
 use tui::layout::{Constraint, Direction, Layout};
+use tui::style::{Color, Style};
+use tui::widgets::{Block, Borders, Tabs, Widget};
 use tui::Terminal;
-use tui::widgets::{Block, Borders, Widget};
+
+pub struct TabsState<'a> {
+    pub titles: Vec<&'a str>,
+    pub index: usize,
+}
+
+impl<'a> TabsState<'a> {
+    pub fn new(titles: Vec<&'a str>) -> TabsState {
+        TabsState { titles, index: 0 }
+    }
+    pub fn next(&mut self) {
+        self.index = (self.index + 1) % self.titles.len();
+    }
+
+    pub fn previous(&mut self) {
+        if self.index > 0 {
+            self.index -= 1;
+        } else {
+            self.index = self.titles.len() - 1;
+        }
+    }
+}
 
 pub enum Event<I> {
     Input(I),
@@ -88,6 +111,9 @@ pub struct Events {
     tick_handle: thread::JoinHandle<()>,
 }
 
+struct App<'a> {
+    tabs: TabsState<'a>,
+}
 
 pub fn start_tui(notifications: Receiver<Notification>) -> Result<(), failure::Error> {
     let stdout = io::stdout().into_raw_mode()?;
@@ -98,56 +124,56 @@ pub fn start_tui(notifications: Receiver<Notification>) -> Result<(), failure::E
     terminal.hide_cursor()?;
 
     let events = Events::new();
+    // App
+    let mut app = App {
+        tabs: TabsState::new(vec!["Topics", "Stream", "Retain", "Statistics"]),
+    };
 
+    // Main loop
     loop {
         terminal.draw(|mut f| {
             let size = f.size();
-            Block::default().borders(Borders::ALL).render(&mut f, size);
-
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
-                .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
-                .split(f.size());
-            {
-                let chunks = Layout::default()
-                    .direction(Direction::Horizontal)
-                    .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
-                    .split(chunks[0]);
+                .constraints([Constraint::Length(3), Constraint::Min(0)].as_ref())
+                .split(size);
 
-                Block::default()
-                    .title("Topics")
+            Block::default()
+                .style(Style::default().bg(Color::White))
+                .render(&mut f, size);
+            Tabs::default()
+                .block(Block::default().borders(Borders::ALL))
+                .titles(&app.tabs.titles)
+                .select(app.tabs.index)
+                .style(Style::default().fg(Color::Cyan))
+                .highlight_style(Style::default().fg(Color::Yellow))
+                .render(&mut f, chunks[0]);
+            match app.tabs.index {
+                0 => Block::default()
                     .borders(Borders::ALL)
-                    .render(&mut f, chunks[0]);
-
-                Block::default()
-                    .title("Stream")
+                    .render(&mut f, chunks[1]),
+                1 => Block::default()
                     .borders(Borders::ALL)
-                    .render(&mut f, chunks[1]);
-            }
-            {
-                let chunks = Layout::default()
-                    .direction(Direction::Horizontal)
-                    .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
-                    .split(chunks[1]);
-
-                Block::default()
-                    .title("Statistics")
+                    .render(&mut f, chunks[1]),
+                2 => Block::default()
                     .borders(Borders::ALL)
-                    .render(&mut f, chunks[0]);
-
-                Block::default()
-                    .title("Retain")
+                    .render(&mut f, chunks[1]),
+                3 => Block::default()
                     .borders(Borders::ALL)
-                    .render(&mut f, chunks[1]);
+                    .render(&mut f, chunks[1]),
+                _ => {}
             }
         })?;
 
         match events.next()? {
-            Event::Input(key) => {
-                if key == Key::Char('q') {
+            Event::Input(key) => match key {
+                Key::Char('q') => {
                     break;
                 }
-            }
+                Key::Right => app.tabs.next(),
+                Key::Left => app.tabs.previous(),
+                _ => {}
+            },
             _ => {}
         }
     }
