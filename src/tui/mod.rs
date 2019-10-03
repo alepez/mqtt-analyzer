@@ -13,6 +13,8 @@ use tui::style::{Color, Style};
 use tui::widgets::{Block, Borders, List, Paragraph, Tabs, Text, Widget};
 use tui::{Frame, Terminal};
 
+use crate::format::format_notification;
+use crate::format::MessageFormat;
 use utils::{Event, Events};
 
 mod utils;
@@ -91,21 +93,24 @@ where
         .render(f, chunks[1]);
 }
 
-fn draw_stream_tab<B>(f: &mut Frame<B>, area: Rect, app: &mut App)
+fn draw_stream_tab<B>(f: &mut Frame<B>, area: Rect, app: &mut App, format: MessageFormat)
 where
     B: Backend,
 {
     let formatted_notifications = app
         .notifications
         .iter()
-        .map(|n| Text::raw(format!("{:?}", n)));
+        .map(|n| Text::raw(format_notification(format, n)));
 
     List::new(formatted_notifications)
         .block(Block::default().borders(Borders::ALL))
         .render(f, area);
 }
 
-pub fn start_tui(notifications: Receiver<Notification>) -> Result<(), failure::Error> {
+pub fn start_tui(
+    notifications: Receiver<Notification>,
+    format_options: MessageFormat,
+) -> Result<(), failure::Error> {
     let stdout = io::stdout().into_raw_mode()?;
     let stdout = MouseTerminal::from(stdout);
     let stdout = AlternateScreen::from(stdout);
@@ -149,7 +154,7 @@ pub fn start_tui(notifications: Receiver<Notification>) -> Result<(), failure::E
 
             match app.tabs.index {
                 0 => draw_topics_tab(&mut f, chunks[1], &mut app),
-                1 => draw_stream_tab(&mut f, chunks[1], &mut app),
+                1 => draw_stream_tab(&mut f, chunks[1], &mut app, format_options),
                 2 => Block::default()
                     .borders(Borders::ALL)
                     .render(&mut f, chunks[1]),

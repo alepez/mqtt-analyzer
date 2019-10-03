@@ -3,10 +3,10 @@ extern crate clap;
 extern crate colored;
 extern crate hex;
 
-use ::std::io::{self, Write};
+use std::io::{self, Write};
 
-use ::colored::Colorize;
-use ::rumqtt::{MqttClient, Notification, QoS, Receiver};
+use colored::Colorize;
+use rumqtt::{MqttClient, Notification, QoS, Receiver};
 
 use crate::cli::parse_options;
 use crate::format::{format_message, MessageFormat};
@@ -56,7 +56,7 @@ fn main() -> Result<(), failure::Error> {
     }
 
     if tui {
-        start_tui(notifications)
+        start_tui(notifications, format_options)
     } else {
         start_stream(notifications, format_options)
     }

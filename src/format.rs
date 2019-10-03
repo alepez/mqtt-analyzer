@@ -1,4 +1,4 @@
-use colored::*;
+use rumqtt::Notification;
 
 #[derive(Copy, Clone)]
 pub enum PayloadFormat {
@@ -63,6 +63,14 @@ pub fn format_payload(format: PayloadFormat, payload: &[u8]) -> String {
 
 pub fn format_message(format: MessageFormat, msg: &rumqtt::Publish) -> String {
     let payload = format_payload(format.payload_format, msg.payload.as_ref());
-    let colored_topic = msg.topic_name.blue();
-    colored_topic.to_string() + " " + payload.as_str()
+    // FIXME Color not supported by TUI
+    //    let colored_topic = msg.topic_name.blue();
+    msg.topic_name.to_string() + " " + payload.as_str()
+}
+
+pub fn format_notification(format: MessageFormat, notification: &rumqtt::Notification) -> String {
+    match notification {
+        Notification::Publish(msg) => format_message(format, msg),
+        _ => "...".to_string(),
+    }
 }
