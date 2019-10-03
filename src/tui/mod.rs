@@ -1,3 +1,4 @@
+use circular_queue::CircularQueue;
 use std::io::{self};
 use std::sync::mpsc;
 use std::thread;
@@ -13,9 +14,10 @@ use tui::style::{Color, Style};
 use tui::widgets::{Block, Borders, List, Paragraph, Tabs, Text, Widget};
 use tui::{Frame, Terminal};
 
+use utils::{Event, Events};
+
 use crate::format::format_notification;
 use crate::format::MessageFormat;
-use utils::{Event, Events};
 
 mod utils;
 
@@ -45,7 +47,7 @@ struct App {
     tabs: TabsState,
     subscriptions: Vec<String>,
     subscribe_input: String,
-    notifications: Vec<Notification>, // FIXME grow forever
+    notifications: CircularQueue<Notification>,
 }
 
 impl Default for App {
@@ -59,7 +61,7 @@ impl Default for App {
             tabs: TabsState::new(tabs),
             subscriptions: Vec::new(),
             subscribe_input: String::new(),
-            notifications: Vec::new(),
+            notifications: CircularQueue::with_capacity(100),
         }
     }
 }
@@ -78,9 +80,12 @@ where
         .block(Block::default().borders(Borders::ALL).title("Subscribe"))
         .render(f, chunks[0]);
 
+    let messages_to_keep = chunks[1].height as usize;
+
     let messages = app
         .subscriptions
         .iter()
+        .take(messages_to_keep)
         .enumerate()
         .map(|(i, m)| Text::raw(format!("{}: {}", i, m)));
 
@@ -104,6 +109,7 @@ where
 
     List::new(formatted_notifications)
         .block(Block::default().borders(Borders::ALL))
+        .start_corner(Corner::BottomLeft)
         .render(f, area);
 }
 
