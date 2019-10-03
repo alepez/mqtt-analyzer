@@ -1,8 +1,8 @@
-use circular_queue::CircularQueue;
 use std::io::{self};
 use std::sync::mpsc;
 use std::thread;
 
+use circular_queue::CircularQueue;
 use rumqtt::{Notification, Receiver};
 use termion::event::Key;
 use termion::input::MouseTerminal;
@@ -80,16 +80,9 @@ where
         .block(Block::default().borders(Borders::ALL).title("Subscribe"))
         .render(f, chunks[0]);
 
-    let messages_to_keep = chunks[1].height as usize;
+    let subscriptions = app.subscriptions.iter().map(Text::raw);
 
-    let messages = app
-        .subscriptions
-        .iter()
-        .take(messages_to_keep)
-        .enumerate()
-        .map(|(i, m)| Text::raw(format!("{}: {}", i, m)));
-
-    List::new(messages)
+    List::new(subscriptions)
         .block(
             Block::default()
                 .borders(Borders::ALL)
