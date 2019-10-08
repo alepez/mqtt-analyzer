@@ -98,7 +98,7 @@ where
     let formatted_notifications = app
         .notifications
         .iter()
-        .map(|n| Text::raw(format_notification(format, n)));
+        .map(|n| Text::raw(format_notification(format, n).to_string()));
 
     List::new(formatted_notifications)
         .block(Block::default().borders(Borders::ALL))

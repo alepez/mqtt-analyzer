@@ -9,7 +9,7 @@ use colored::Colorize;
 use rumqtt::{MqttClient, Notification, QoS, Receiver};
 
 use crate::cli::parse_options;
-use crate::format::{format_message, MessageFormat};
+use crate::format::{format_notification, MessageFormat};
 use crate::tui::start_tui;
 
 mod cli;
@@ -21,20 +21,9 @@ fn start_stream(
     format_options: MessageFormat,
 ) -> Result<(), failure::Error> {
     for notification in notifications {
-        match notification {
-            Notification::Publish(msg) => {
-                let line = format_message(format_options, &msg) + "\n";
-                io::stdout().write_all(line.as_bytes()).unwrap();
-                io::stdout().flush().unwrap();
-            }
-            Notification::Disconnection => {
-                println!("{}", "Disconnected!".red());
-            }
-            Notification::Reconnection => {
-                println!("{}", "Connected!".green());
-            }
-            _ => (),
-        }
+        let line = format_notification(format_options, &notification).to_string() + "\n";
+        io::stdout().write_all(line.as_bytes()).unwrap();
+        io::stdout().flush().unwrap();
     }
     Ok(())
 }

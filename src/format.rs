@@ -21,6 +21,44 @@ impl MessageFormat {
     }
 }
 
+enum Color {
+    Background,
+    OnBackground,
+    Primary,
+    OnPrimary,
+    Secondary,
+    OnSecondary,
+    Error,
+    OnError,
+}
+
+struct TokenStyle {
+    color: Color,
+}
+
+pub struct FormattedToken {
+    style: TokenStyle,
+    content: String,
+}
+
+impl FormattedToken {
+    fn new(style: TokenStyle, content: String) -> FormattedToken {
+        FormattedToken { style, content }
+    }
+}
+
+pub struct FormattedString(Vec<FormattedToken>);
+
+impl ToString for FormattedString {
+    fn to_string(&self) -> String {
+        self.0
+            .iter()
+            .map(|tok| tok.content.clone())
+            .collect::<Vec<String>>()
+            .join(" ")
+    }
+}
+
 pub fn format_payload_hex(payload: &[u8]) -> String {
     hex::encode(payload)
 }
@@ -61,16 +99,36 @@ pub fn format_payload(format: PayloadFormat, payload: &[u8]) -> String {
     }
 }
 
-pub fn format_message(format: MessageFormat, msg: &rumqtt::Publish) -> String {
+pub fn format_message(format: MessageFormat, msg: &rumqtt::Publish) -> FormattedString {
     let payload = format_payload(format.payload_format, msg.payload.as_ref());
-    // FIXME Color not supported by TUI
-    //    let colored_topic = msg.topic_name.blue();
-    msg.topic_name.to_string() + " " + payload.as_str()
+
+    FormattedString(vec![
+        FormattedToken::new(
+            TokenStyle {
+                color: Color::Primary,
+            },
+            msg.topic_name.clone(),
+        ),
+        FormattedToken::new(
+            TokenStyle {
+                color: Color::OnBackground,
+            },
+            payload,
+        ),
+    ])
 }
 
-pub fn format_notification(format: MessageFormat, notification: &rumqtt::Notification) -> String {
+pub fn format_notification(
+    format: MessageFormat,
+    notification: &rumqtt::Notification,
+) -> FormattedString {
     match notification {
         Notification::Publish(msg) => format_message(format, msg),
-        _ => "...".to_string(),
+        n => FormattedString(vec![FormattedToken::new(
+            TokenStyle {
+                color: Color::OnBackground,
+            },
+            format!("{:?}", n),
+        )]),
     }
 }
