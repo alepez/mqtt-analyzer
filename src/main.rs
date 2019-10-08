@@ -21,7 +21,7 @@ fn start_stream(
     format_options: MessageFormat,
 ) -> Result<(), failure::Error> {
     for notification in notifications {
-        let line = format_notification(format_options, &notification).to_string() + "\n";
+        let line = format_notification(format_options, &notification).to_color_string() + "\n";
         io::stdout().write_all(line.as_bytes()).unwrap();
         io::stdout().flush().unwrap();
     }

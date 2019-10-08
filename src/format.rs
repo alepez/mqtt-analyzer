@@ -1,3 +1,4 @@
+use colored::Colorize;
 use rumqtt::Notification;
 
 #[derive(Copy, Clone)]
@@ -21,6 +22,7 @@ impl MessageFormat {
     }
 }
 
+#[derive(Copy, Clone)]
 enum Color {
     Background,
     OnBackground,
@@ -32,8 +34,24 @@ enum Color {
     OnError,
 }
 
+impl Into<colored::Color> for Color {
+    fn into(self) -> colored::Color {
+        match self {
+            Color::Background => colored::Color::Black,
+            Color::OnBackground => colored::Color::White,
+            Color::Primary => colored::Color::Blue,
+            Color::OnPrimary => colored::Color::Black,
+            Color::Secondary => colored::Color::BrightGreen,
+            Color::OnSecondary => colored::Color::Black,
+            Color::Error => colored::Color::Red,
+            Color::OnError => colored::Color::White,
+        }
+    }
+}
+
 struct TokenStyle {
     color: Color,
+    background: Color,
 }
 
 pub struct FormattedToken {
@@ -48,6 +66,20 @@ impl FormattedToken {
 }
 
 pub struct FormattedString(Vec<FormattedToken>);
+
+impl FormattedString {
+    pub fn to_color_string(&self) -> String {
+        self.0
+            .iter()
+            .map(|tok| {
+                let fg: colored::Color = tok.style.color.into();
+                let bg: colored::Color = tok.style.background.into();
+                format!("{}", tok.content.color(fg).on_color(bg))
+            })
+            .collect::<Vec<String>>()
+            .join(" ")
+    }
+}
 
 impl ToString for FormattedString {
     fn to_string(&self) -> String {
@@ -105,13 +137,15 @@ pub fn format_message(format: MessageFormat, msg: &rumqtt::Publish) -> Formatted
     FormattedString(vec![
         FormattedToken::new(
             TokenStyle {
-                color: Color::Primary,
+                color: Color::OnPrimary,
+                background: Color::Primary,
             },
             msg.topic_name.clone(),
         ),
         FormattedToken::new(
             TokenStyle {
                 color: Color::OnBackground,
+                background: Color::Background,
             },
             payload,
         ),
@@ -126,7 +160,8 @@ pub fn format_notification(
         Notification::Publish(msg) => format_message(format, msg),
         n => FormattedString(vec![FormattedToken::new(
             TokenStyle {
-                color: Color::OnBackground,
+                color: Color::OnError,
+                background: Color::Error,
             },
             format!("{:?}", n),
         )]),
