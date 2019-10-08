@@ -2,6 +2,11 @@ use clap::{App, Arg};
 use rumqtt::{MqttOptions, SecurityOptions};
 
 use crate::format::{MessageFormat, PayloadFormat};
+use uuid::Uuid;
+
+fn generate_random_client_id() -> String {
+    Uuid::new_v4().to_string()
+}
 
 pub struct Options {
     pub mqtt: MqttOptions,
@@ -79,7 +84,10 @@ pub fn parse_options() -> Options {
     let username = matches.value_of("username");
     let password = matches.value_of("password");
 
-    let client_id = matches.value_of("client_id").unwrap_or("FIXME");
+    let client_id = matches
+        .value_of("client_id")
+        .map(str::to_string)
+        .unwrap_or(generate_random_client_id());
 
     let topics: Vec<String> = matches
         .values_of("topic")
