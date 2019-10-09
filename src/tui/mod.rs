@@ -98,9 +98,13 @@ where
     let formatted_notifications = app
         .notifications
         .iter()
-        .map(|n| Text::raw(format_notification(format, n).to_string()));
+        .flat_map(|n| {
+            let f = format_notification(format, n);
+            f.to_tui_color_string()
+        })
+        .collect::<Vec<Text>>();
 
-    List::new(formatted_notifications)
+    List::new(formatted_notifications.into_iter())
         .block(Block::default().borders(Borders::ALL))
         .start_corner(Corner::BottomLeft)
         .render(f, area);

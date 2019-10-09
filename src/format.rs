@@ -1,4 +1,3 @@
-use colored::Colorize;
 use rumqtt::Notification;
 
 #[derive(Copy, Clone)]
@@ -49,6 +48,21 @@ impl Into<colored::Color> for Color {
     }
 }
 
+impl Into<tui::style::Color> for Color {
+    fn into(self) -> tui::style::Color {
+        match self {
+            Color::Background => tui::style::Color::Black,
+            Color::OnBackground => tui::style::Color::White,
+            Color::Primary => tui::style::Color::Blue,
+            Color::OnPrimary => tui::style::Color::Black,
+            Color::Secondary => tui::style::Color::LightGreen,
+            Color::OnSecondary => tui::style::Color::Black,
+            Color::Error => tui::style::Color::Red,
+            Color::OnError => tui::style::Color::White,
+        }
+    }
+}
+
 struct TokenStyle {
     color: Color,
     background: Color,
@@ -72,12 +86,30 @@ impl FormattedString {
         self.0
             .iter()
             .map(|tok| {
+                use colored::{Color, Colorize};
                 let fg: colored::Color = tok.style.color.into();
                 let bg: colored::Color = tok.style.background.into();
                 format!("{}", tok.content.color(fg).on_color(bg))
             })
             .collect::<Vec<String>>()
             .join(" ")
+    }
+    pub fn to_tui_color_string(&self) -> Vec<tui::widgets::Text> {
+        self.0
+            .iter()
+            .map(|tok| {
+                use tui::style::{Color, Modifier, Style};
+                use tui::widgets::Text;
+                let fg: Color = tok.style.color.into();
+                let bg: Color = tok.style.background.into();
+                let style = Style {
+                    fg,
+                    bg,
+                    modifier: Modifier::empty(),
+                };
+                Text::styled(tok.content.clone(), style)
+            })
+            .collect()
     }
 }
 
