@@ -1,5 +1,4 @@
 use std::io::{self};
-use std::sync::mpsc;
 use std::thread;
 
 use circular_queue::CircularQueue;
@@ -17,6 +16,7 @@ use tui::{Frame, Terminal};
 use utils::{Event, Events};
 
 use crate::format::format_notification;
+use crate::format::FormattedString;
 use crate::format::MessageFormat;
 
 mod utils;
@@ -95,16 +95,15 @@ fn draw_stream_tab<B>(f: &mut Frame<B>, area: Rect, app: &mut App, format: Messa
 where
     B: Backend,
 {
-    let formatted_notifications = app
+    let formatted: Vec<FormattedString> = app
         .notifications
         .iter()
-        .flat_map(|n| {
-            let f = format_notification(format, n);
-            f.to_tui_color_string()
-        })
-        .collect::<Vec<Text>>();
+        .map(|notification| format_notification(format, notification))
+        .collect();
 
-    List::new(formatted_notifications.into_iter())
+    let formatted = formatted.iter().flat_map(|n| n.to_tui_color_string());
+
+    List::new(formatted)
         .block(Block::default().borders(Borders::ALL))
         .start_corner(Corner::BottomLeft)
         .render(f, area);

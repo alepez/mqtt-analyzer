@@ -22,7 +22,7 @@ impl MessageFormat {
 }
 
 #[derive(Copy, Clone)]
-enum Color {
+pub enum Color {
     Background,
     OnBackground,
     Primary,
@@ -63,11 +63,13 @@ impl Into<tui::style::Color> for Color {
     }
 }
 
-struct TokenStyle {
+#[derive(Clone)]
+pub struct TokenStyle {
     color: Color,
     background: Color,
 }
 
+#[derive(Clone)]
 pub struct FormattedToken {
     style: TokenStyle,
     content: String,
@@ -79,6 +81,7 @@ impl FormattedToken {
     }
 }
 
+#[derive(Clone)]
 pub struct FormattedString(Vec<FormattedToken>);
 
 impl FormattedString {
@@ -86,7 +89,7 @@ impl FormattedString {
         self.0
             .iter()
             .map(|tok| {
-                use colored::{Color, Colorize};
+                use colored::Colorize;
                 let fg: colored::Color = tok.style.color.into();
                 let bg: colored::Color = tok.style.background.into();
                 format!("{}", tok.content.color(fg).on_color(bg))

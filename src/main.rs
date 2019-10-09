@@ -5,7 +5,6 @@ extern crate hex;
 
 use std::io::{self, Write};
 
-use colored::Colorize;
 use rumqtt::{MqttClient, Notification, QoS, Receiver};
 
 use crate::cli::parse_options;
