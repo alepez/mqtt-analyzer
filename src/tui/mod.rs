@@ -7,43 +7,25 @@ use termion::event::Key;
 use termion::input::MouseTerminal;
 use termion::raw::IntoRawMode;
 use termion::screen::AlternateScreen;
-use tui::backend::{Backend, TermionBackend};
-use tui::layout::{Constraint, Corner, Direction, Layout, Rect};
+use tui::backend::TermionBackend;
+use tui::layout::{Constraint, Direction, Layout, Rect};
 use tui::style::{Color, Style};
-use tui::widgets::{Block, Borders, List, Paragraph, Tabs, Text, Widget};
-use tui::{Frame, Terminal};
+use tui::widgets::{Block, Borders, Tabs, Text, Widget};
+use tui::Terminal;
 
 use utils::{Event, Events};
 
-use crate::format::format_notification;
-use crate::format::FormattedString;
 use crate::format::MessageFormat;
+use crate::tui::stream::draw_stream_tab;
+use crate::tui::subscriptions::draw_topics_tab;
+use crate::tui::tabs::TabsState;
 
+mod stream;
+mod subscriptions;
+mod tabs;
 mod utils;
 
-pub struct TabsState {
-    pub titles: Vec<String>,
-    pub index: usize,
-}
-
-impl TabsState {
-    pub fn new(titles: Vec<String>) -> TabsState {
-        TabsState { titles, index: 0 }
-    }
-    pub fn next(&mut self) {
-        self.index = (self.index + 1) % self.titles.len();
-    }
-
-    pub fn previous(&mut self) {
-        if self.index > 0 {
-            self.index -= 1;
-        } else {
-            self.index = self.titles.len() - 1;
-        }
-    }
-}
-
-struct App {
+pub struct App {
     tabs: TabsState,
     subscriptions: Vec<String>,
     subscribe_input: String,
@@ -64,49 +46,6 @@ impl Default for App {
             notifications: CircularQueue::with_capacity(100),
         }
     }
-}
-
-fn draw_topics_tab<B>(f: &mut Frame<B>, area: Rect, app: &mut App)
-where
-    B: Backend,
-{
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Length(3), Constraint::Min(0)].as_ref())
-        .split(area);
-
-    Paragraph::new([Text::raw(&app.subscribe_input)].iter())
-        .style(Style::default().fg(Color::Yellow))
-        .block(Block::default().borders(Borders::ALL).title("Subscribe"))
-        .render(f, chunks[0]);
-
-    let subscriptions = app.subscriptions.iter().map(Text::raw);
-
-    List::new(subscriptions)
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title("Subscriptions"),
-        )
-        .render(f, chunks[1]);
-}
-
-fn draw_stream_tab<B>(f: &mut Frame<B>, area: Rect, app: &mut App, format: MessageFormat)
-where
-    B: Backend,
-{
-    let formatted: Vec<FormattedString> = app
-        .notifications
-        .iter()
-        .map(|notification| format_notification(format, notification))
-        .collect();
-
-    let formatted = formatted.iter().flat_map(|n| n.to_tui_color_string());
-
-    List::new(formatted)
-        .block(Block::default().borders(Borders::ALL))
-        .start_corner(Corner::BottomLeft)
-        .render(f, area);
 }
 
 pub fn start_tui(
