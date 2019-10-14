@@ -36,14 +36,11 @@ fn main() -> Result<(), failure::Error> {
         tui,
     } = options;
 
-    let (mut client, notifications) = MqttClient::start(mqtt_options).unwrap();
-    let mut engine = Engine::new(notifications);
+    let (client, notifications) = MqttClient::start(mqtt_options).unwrap();
+    let mut engine = Engine::new(notifications, client);
 
     for subscription in subscriptions.iter() {
-        client
-            .subscribe(subscription.as_str(), QoS::AtLeastOnce)
-            .unwrap();
-        engine.subscribe(subscription); // TODO
+        engine.subscribe(subscription);
     }
 
     if tui {
