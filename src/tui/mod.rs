@@ -15,6 +15,7 @@ use tui::Terminal;
 
 use utils::{Event, Events};
 
+use crate::engine::Engine;
 use crate::format::MessageFormat;
 use crate::tui::stream::draw_stream_tab;
 use crate::tui::subscriptions::draw_subscriptions_tab;
@@ -48,10 +49,7 @@ impl Default for App {
     }
 }
 
-pub fn start_tui(
-    notifications: Receiver<Notification>,
-    format_options: MessageFormat,
-) -> Result<(), failure::Error> {
+pub fn start_tui(engine: Engine, format_options: MessageFormat) -> Result<(), failure::Error> {
     let stdout = io::stdout().into_raw_mode()?;
     let stdout = MouseTerminal::from(stdout);
     let stdout = AlternateScreen::from(stdout);
@@ -66,7 +64,7 @@ pub fn start_tui(
     {
         let tx = events.tx();
         thread::spawn(move || {
-            for notification in notifications {
+            for notification in engine.notifications {
                 tx.send(Event::MqttNotification(notification)).unwrap();
             }
         });

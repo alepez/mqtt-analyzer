@@ -8,18 +8,17 @@ use std::io::{self, Write};
 use rumqtt::{MqttClient, Notification, QoS, Receiver};
 
 use crate::cli::parse_options;
+use crate::engine::Engine;
 use crate::format::{format_notification, MessageFormat};
 use crate::tui::start_tui;
 
 mod cli;
+mod engine;
 mod format;
 mod tui;
 
-fn start_stream(
-    notifications: Receiver<Notification>,
-    format_options: MessageFormat,
-) -> Result<(), failure::Error> {
-    for notification in notifications {
+fn start_stream(engine: Engine, format_options: MessageFormat) -> Result<(), failure::Error> {
+    for notification in engine.notifications {
         let line = format_notification(format_options, &notification).to_color_string() + "\n";
         io::stdout().write_all(line.as_bytes()).unwrap();
         io::stdout().flush().unwrap();
@@ -33,19 +32,23 @@ fn main() -> Result<(), failure::Error> {
     let cli::Options {
         format: format_options,
         mqtt: mqtt_options,
-        topics,
+        subscriptions,
         tui,
     } = options;
 
     let (mut client, notifications) = MqttClient::start(mqtt_options).unwrap();
+    let mut engine = Engine::new(notifications);
 
-    for topic in topics.iter() {
-        client.subscribe(topic.as_str(), QoS::AtLeastOnce).unwrap();
+    for subscription in subscriptions.iter() {
+        client
+            .subscribe(subscription.as_str(), QoS::AtLeastOnce)
+            .unwrap();
+        engine.subscribe(subscription); // TODO
     }
 
     if tui {
-        start_tui(notifications, format_options)
+        start_tui(engine, format_options)
     } else {
-        start_stream(notifications, format_options)
+        start_stream(engine, format_options)
     }
 }

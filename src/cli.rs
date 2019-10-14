@@ -10,7 +10,7 @@ fn generate_random_client_id() -> String {
 
 pub struct Options {
     pub mqtt: MqttOptions,
-    pub topics: Vec<String>,
+    pub subscriptions: Vec<String>,
     pub format: MessageFormat,
     pub tui: bool,
 }
@@ -89,7 +89,7 @@ pub fn parse_options() -> Options {
         .map(str::to_string)
         .unwrap_or(generate_random_client_id());
 
-    let topics: Vec<String> = matches
+    let subscriptions: Vec<String> = matches
         .values_of("topic")
         .map_or(vec![], |values| values.map(|s| s.to_string()).collect());
 
@@ -114,7 +114,7 @@ pub fn parse_options() -> Options {
 
     Options {
         mqtt: MqttOptions::new(client_id, hostname, port).set_security_opts(security_options),
-        topics,
+        subscriptions,
         format: message_format,
         tui,
     }
