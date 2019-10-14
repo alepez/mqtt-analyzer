@@ -1,25 +1,12 @@
-use std::io::{self};
-use std::thread;
-
-use circular_queue::CircularQueue;
-use rumqtt::{Notification, Receiver};
-use termion::event::Key;
-use termion::input::MouseTerminal;
-use termion::raw::IntoRawMode;
-use termion::screen::AlternateScreen;
-use tui::backend::{Backend, TermionBackend};
-use tui::layout::{Constraint, Corner, Direction, Layout, Rect};
+use tui::backend::Backend;
+use tui::layout::{Constraint, Direction, Layout, Rect};
 use tui::style::{Color, Style};
-use tui::widgets::{Block, Borders, List, Paragraph, Tabs, Text, Widget};
-use tui::{Frame, Terminal};
+use tui::widgets::{Block, Borders, List, Paragraph, Text, Widget};
+use tui::Frame;
 
-use crate::format::format_notification;
-use crate::format::FormattedString;
-use crate::format::MessageFormat;
-use crate::tui::tabs::TabsState;
 use crate::tui::App;
 
-pub fn draw_topics_tab<B>(f: &mut Frame<B>, area: Rect, app: &mut App)
+pub fn draw_subscriptions_tab<B>(f: &mut Frame<B>, area: Rect, app: &mut App)
 where
     B: Backend,
 {

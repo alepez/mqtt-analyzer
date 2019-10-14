@@ -84,6 +84,8 @@ impl Events {
 pub struct Events {
     tx: mpsc::Sender<Event>,
     rx: mpsc::Receiver<Event>,
+    #[allow(dead_code)]
     input_handle: thread::JoinHandle<()>,
+    #[allow(dead_code)]
     tick_handle: thread::JoinHandle<()>,
 }

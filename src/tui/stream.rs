@@ -1,7 +1,6 @@
-use rumqtt::Receiver;
 use tui::backend::Backend;
-use tui::layout::{Corner, Layout, Rect};
-use tui::widgets::{Block, Borders, List, Text, Widget};
+use tui::layout::{Corner, Rect};
+use tui::widgets::{Block, Borders, List, Widget};
 use tui::Frame;
 
 use crate::format::format_notification;

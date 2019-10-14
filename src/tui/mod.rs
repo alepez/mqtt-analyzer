@@ -8,16 +8,16 @@ use termion::input::MouseTerminal;
 use termion::raw::IntoRawMode;
 use termion::screen::AlternateScreen;
 use tui::backend::TermionBackend;
-use tui::layout::{Constraint, Direction, Layout, Rect};
+use tui::layout::{Constraint, Direction, Layout};
 use tui::style::{Color, Style};
-use tui::widgets::{Block, Borders, Tabs, Text, Widget};
+use tui::widgets::{Block, Borders, Tabs, Widget};
 use tui::Terminal;
 
 use utils::{Event, Events};
 
 use crate::format::MessageFormat;
 use crate::tui::stream::draw_stream_tab;
-use crate::tui::subscriptions::draw_topics_tab;
+use crate::tui::subscriptions::draw_subscriptions_tab;
 use crate::tui::tabs::TabsState;
 
 mod stream;
@@ -94,7 +94,7 @@ pub fn start_tui(
                 .render(&mut f, chunks[0]);
 
             match app.tabs.index {
-                0 => draw_topics_tab(&mut f, chunks[1], &mut app),
+                0 => draw_subscriptions_tab(&mut f, chunks[1], &mut app),
                 1 => draw_stream_tab(&mut f, chunks[1], &mut app, format_options),
                 2 => Block::default()
                     .borders(Borders::ALL)
@@ -131,5 +131,6 @@ pub fn start_tui(
             _ => {}
         }
     }
+
     Ok(())
 }
