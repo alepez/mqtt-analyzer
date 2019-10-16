@@ -1,7 +1,8 @@
 use std::collections::HashSet;
+use std::sync::mpsc::{Receiver, Sender};
+use std::thread;
 
-use rumqtt::{MqttClient, Notification, Receiver};
-use std::sync::mpsc::Sender;
+use rumqtt::Notification;
 
 pub enum Event {
     Subscribe(String),
@@ -9,31 +10,33 @@ pub enum Event {
 }
 
 pub struct Engine {
-    pub notifications: Receiver<Notification>,
-    subscriptions: HashSet<String>,
-    client_tx: Sender<Event>,
+    pub notifications: rumqtt::Receiver<Notification>,
+    tx: Sender<Event>,
+    #[allow(dead_code)]
+    thread: thread::JoinHandle<()>,
 }
 
 impl Engine {
-    pub fn new(notifications: Receiver<Notification>, client_tx: Sender<Event>) -> Engine {
+    pub fn new(notifications: rumqtt::Receiver<Notification>, client_tx: Sender<Event>) -> Engine {
+        let (tx, rx) = std::sync::mpsc::channel();
+        let thread = thread::spawn(move || loop {
+            match rx.recv() {
+                Ok(event) => match event {
+                    Event::Subscribe(_) => client_tx.send(event).unwrap(),
+                    Event::Unsubscribe(_) => client_tx.send(event).unwrap(),
+                },
+                Err(_) => panic!("?"),
+            };
+        });
+
         Engine {
-            subscriptions: HashSet::new(),
             notifications,
-            client_tx,
+            tx,
+            thread,
         }
     }
 
-    pub fn subscribe(&mut self, sub: &String) {
-        if !self.subscriptions.contains(sub) {
-            self.client_tx.send(Event::Subscribe(sub.clone()));
-            self.subscriptions.insert(sub.clone());
-        }
-    }
-
-    pub fn unsubscribe(&mut self, sub: &String) {
-        if self.subscriptions.contains(sub) {
-            self.client_tx.send(Event::Unsubscribe(sub.clone()));
-            self.subscriptions.remove(sub);
-        }
+    pub fn tx(&self) -> Sender<Event> {
+        self.tx.clone()
     }
 }

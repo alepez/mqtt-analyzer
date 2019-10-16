@@ -55,6 +55,7 @@ pub fn start_tui(engine: Engine, format_options: MessageFormat) -> Result<(), fa
     let stdout = AlternateScreen::from(stdout);
     let backend = TermionBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
+    let engine_tx = engine.tx();
     terminal.hide_cursor()?;
 
     let events = Events::new();
@@ -112,8 +113,10 @@ pub fn start_tui(engine: Engine, format_options: MessageFormat) -> Result<(), fa
                 Key::Right => app.tabs.next(),
                 Key::Left => app.tabs.previous(),
                 Key::Char('\n') => {
-                    app.subscriptions
-                        .push(app.subscribe_input.drain(..).collect());
+                    let sub = app.subscribe_input.drain(..).collect();
+                    engine_tx
+                        .send(crate::engine::Event::Subscribe(sub))
+                        .unwrap();
                 }
                 Key::Char(c) => {
                     app.subscribe_input.push(c);

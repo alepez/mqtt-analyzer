@@ -7,7 +7,7 @@ use std::io::{self, Write};
 use std::sync::mpsc;
 use std::thread;
 
-use rumqtt::{MqttClient, Notification, QoS, Receiver};
+use rumqtt::MqttClient;
 
 use crate::cli::parse_options;
 use crate::engine::Engine;
@@ -39,8 +39,10 @@ fn main() -> Result<(), failure::Error> {
     } = options;
 
     let (mut client, notifications) = MqttClient::start(mqtt_options).unwrap();
+
     let (client_tx, client_rx) = mpsc::channel();
-    let mut engine = Engine::new(notifications, client_tx);
+
+    let engine = Engine::new(notifications, client_tx);
 
     thread::spawn(move || loop {
         match client_rx.recv() {
@@ -59,7 +61,9 @@ fn main() -> Result<(), failure::Error> {
     });
 
     for subscription in subscriptions.iter() {
-        engine.subscribe(subscription);
+        engine
+            .tx()
+            .send(engine::Event::Subscribe(subscription.clone()));
     }
 
     if tui {
