@@ -1,34 +1,38 @@
 use std::collections::HashSet;
 
 use rumqtt::{MqttClient, Notification, Receiver};
+use std::sync::mpsc::Sender;
+
+pub enum Event {
+    Subscribe(String),
+    Unsubscribe(String),
+}
 
 pub struct Engine {
     pub notifications: Receiver<Notification>,
     subscriptions: HashSet<String>,
-    client: MqttClient,
+    client_tx: Sender<Event>,
 }
 
 impl Engine {
-    pub fn new(notifications: Receiver<Notification>, client: MqttClient) -> Engine {
+    pub fn new(notifications: Receiver<Notification>, client_tx: Sender<Event>) -> Engine {
         Engine {
             subscriptions: HashSet::new(),
             notifications,
-            client,
+            client_tx,
         }
     }
 
     pub fn subscribe(&mut self, sub: &String) {
         if !self.subscriptions.contains(sub) {
-            self.client
-                .subscribe(sub.as_str(), rumqtt::QoS::AtLeastOnce)
-                .unwrap();
+            self.client_tx.send(Event::Subscribe(sub.clone()));
             self.subscriptions.insert(sub.clone());
         }
     }
 
     pub fn unsubscribe(&mut self, sub: &String) {
         if self.subscriptions.contains(sub) {
-            self.client.unsubscribe(sub).unwrap();
+            self.client_tx.send(Event::Unsubscribe(sub.clone()));
             self.subscriptions.remove(sub);
         }
     }

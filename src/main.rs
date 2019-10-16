@@ -4,6 +4,8 @@ extern crate colored;
 extern crate hex;
 
 use std::io::{self, Write};
+use std::sync::mpsc;
+use std::thread;
 
 use rumqtt::{MqttClient, Notification, QoS, Receiver};
 
@@ -36,8 +38,25 @@ fn main() -> Result<(), failure::Error> {
         tui,
     } = options;
 
-    let (client, notifications) = MqttClient::start(mqtt_options).unwrap();
-    let mut engine = Engine::new(notifications, client);
+    let (mut client, notifications) = MqttClient::start(mqtt_options).unwrap();
+    let (client_tx, client_rx) = mpsc::channel();
+    let mut engine = Engine::new(notifications, client_tx);
+
+    thread::spawn(move || loop {
+        match client_rx.recv() {
+            Ok(event) => match event {
+                engine::Event::Subscribe(sub) => {
+                    client
+                        .subscribe(sub.as_str(), rumqtt::QoS::AtLeastOnce)
+                        .unwrap();
+                }
+                engine::Event::Unsubscribe(sub) => {
+                    client.unsubscribe(sub).unwrap();
+                }
+            },
+            Err(e) => panic!("Error"),
+        }
+    });
 
     for subscription in subscriptions.iter() {
         engine.subscribe(subscription);
