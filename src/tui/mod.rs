@@ -113,10 +113,11 @@ pub fn start_tui(engine: Engine, format_options: MessageFormat) -> Result<(), fa
                 Key::Right => app.tabs.next(),
                 Key::Left => app.tabs.previous(),
                 Key::Char('\n') => {
-                    let sub = app.subscribe_input.drain(..).collect();
+                    let sub: String = app.subscribe_input.drain(..).collect();
                     engine_tx
-                        .send(crate::engine::Event::Subscribe(sub))
+                        .send(crate::engine::Event::Subscribe(sub.clone()))
                         .unwrap();
+                    app.subscriptions.push(sub);
                 }
                 Key::Char(c) => {
                     app.subscribe_input.push(c);
