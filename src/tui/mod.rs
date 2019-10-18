@@ -18,7 +18,7 @@ use utils::{Event, Events};
 use crate::engine::Engine;
 use crate::format::MessageFormat;
 use crate::tui::stream::draw_stream_tab;
-use crate::tui::subscriptions::draw_subscriptions_tab;
+use crate::tui::subscriptions::{draw_subscriptions_tab, handle_subscriptions_input};
 use crate::tui::tabs::TabsState;
 
 mod stream;
@@ -121,39 +121,11 @@ pub fn start_tui(engine: Engine, format_options: MessageFormat) -> Result<(), fa
                 }
                 Key::Right => app.tabs.next(),
                 Key::Left => app.tabs.previous(),
-                Key::Char('\n') => {
-                    if app.writing_subscription {
-                        let sub: String = app.subscribe_input.drain(..).collect();
-                        engine_tx
-                            .send(crate::engine::Event::Subscribe(sub.clone()))
-                            .unwrap();
-                        app.subscriptions.push(sub);
-                        app.writing_subscription = false;
-                    }
-                }
-                Key::Char('/') => {
-                    if !app.writing_subscription {
-                        app.writing_subscription = true;
-                    } else {
-                        app.subscribe_input.push('/');
-                    }
-                }
-                Key::Esc => {
-                    if app.writing_subscription {
-                        app.writing_subscription = false;
-                    }
-                }
-                Key::Char(c) => {
-                    if app.writing_subscription {
-                        app.subscribe_input.push(c);
-                    }
-                }
-                Key::Backspace => {
-                    if app.writing_subscription {
-                        app.subscribe_input.pop();
-                    }
-                }
-                _ => {}
+
+                c => match app.tabs.index {
+                    0 => handle_subscriptions_input(c, &mut app, &engine_tx),
+                    _ => {}
+                },
             },
             Event::MqttNotification(notification) => {
                 app.notifications.push(notification);
