@@ -22,6 +22,7 @@ use crate::tui::subscriptions::draw_subscriptions_tab;
 use crate::tui::tabs::TabsState;
 
 mod stream;
+mod style;
 mod subscriptions;
 mod tabs;
 mod utils;
@@ -31,6 +32,7 @@ pub struct App {
     subscriptions: Vec<String>,
     subscribe_input: String,
     notifications: CircularQueue<Notification>,
+    writing_subscription: bool,
 }
 
 impl Default for App {
@@ -45,6 +47,7 @@ impl Default for App {
             subscriptions: Vec::new(),
             subscribe_input: String::new(),
             notifications: CircularQueue::with_capacity(100),
+            writing_subscription: false,
         }
     }
 }
@@ -119,17 +122,36 @@ pub fn start_tui(engine: Engine, format_options: MessageFormat) -> Result<(), fa
                 Key::Right => app.tabs.next(),
                 Key::Left => app.tabs.previous(),
                 Key::Char('\n') => {
-                    let sub: String = app.subscribe_input.drain(..).collect();
-                    engine_tx
-                        .send(crate::engine::Event::Subscribe(sub.clone()))
-                        .unwrap();
-                    app.subscriptions.push(sub);
+                    if app.writing_subscription {
+                        let sub: String = app.subscribe_input.drain(..).collect();
+                        engine_tx
+                            .send(crate::engine::Event::Subscribe(sub.clone()))
+                            .unwrap();
+                        app.subscriptions.push(sub);
+                        app.writing_subscription = false;
+                    }
+                }
+                Key::Char('/') => {
+                    if !app.writing_subscription {
+                        app.writing_subscription = true;
+                    } else {
+                        app.subscribe_input.push('/');
+                    }
+                }
+                Key::Esc => {
+                    if app.writing_subscription {
+                        app.writing_subscription = false;
+                    }
                 }
                 Key::Char(c) => {
-                    app.subscribe_input.push(c);
+                    if app.writing_subscription {
+                        app.subscribe_input.push(c);
+                    }
                 }
                 Key::Backspace => {
-                    app.subscribe_input.pop();
+                    if app.writing_subscription {
+                        app.subscribe_input.pop();
+                    }
                 }
                 _ => {}
             },
