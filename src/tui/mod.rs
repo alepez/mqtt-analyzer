@@ -49,12 +49,24 @@ impl Default for App {
     }
 }
 
+pub fn draw_empty_tab<B>(
+    f: &mut tui::Frame<B>,
+    area: tui::layout::Rect,
+    _app: &mut App,
+    _format: MessageFormat,
+) where
+    B: tui::backend::Backend,
+{
+    Block::default().borders(Borders::ALL).render(f, area)
+}
+
 pub fn start_tui(engine: Engine, format_options: MessageFormat) -> Result<(), failure::Error> {
     let stdout = io::stdout().into_raw_mode()?;
     let stdout = MouseTerminal::from(stdout);
     let stdout = AlternateScreen::from(stdout);
     let backend = TermionBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
+
     let engine_tx = engine.tx();
     terminal.hide_cursor()?;
 
@@ -62,14 +74,12 @@ pub fn start_tui(engine: Engine, format_options: MessageFormat) -> Result<(), fa
 
     let mut app = App::default();
 
-    {
-        let tx = events.tx();
-        thread::spawn(move || {
-            for notification in engine.notifications {
-                tx.send(Event::MqttNotification(notification)).unwrap();
-            }
-        });
-    }
+    let tx = events.tx();
+    thread::spawn(move || {
+        for notification in engine.notifications {
+            tx.send(Event::MqttNotification(notification)).unwrap();
+        }
+    });
 
     loop {
         terminal.draw(|mut f| {
@@ -95,12 +105,8 @@ pub fn start_tui(engine: Engine, format_options: MessageFormat) -> Result<(), fa
             match app.tabs.index {
                 0 => draw_subscriptions_tab(&mut f, chunks[1], &mut app),
                 1 => draw_stream_tab(&mut f, chunks[1], &mut app, format_options),
-                2 => Block::default()
-                    .borders(Borders::ALL)
-                    .render(&mut f, chunks[1]),
-                3 => Block::default()
-                    .borders(Borders::ALL)
-                    .render(&mut f, chunks[1]),
+                2 => draw_empty_tab(&mut f, chunks[1], &mut app, format_options),
+                3 => draw_empty_tab(&mut f, chunks[1], &mut app, format_options),
                 _ => {}
             }
         })?;
