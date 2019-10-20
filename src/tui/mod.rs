@@ -7,17 +7,18 @@ use termion::event::Key;
 use termion::input::MouseTerminal;
 use termion::raw::IntoRawMode;
 use termion::screen::AlternateScreen;
-use tui::backend::TermionBackend;
-use tui::layout::{Constraint, Direction, Layout};
+use tui::backend::{Backend, TermionBackend};
+use tui::layout::{Constraint, Direction, Layout, Rect};
 use tui::style::{Color, Style};
 use tui::widgets::{Block, Borders, Tabs, Widget};
-use tui::Terminal;
+use tui::{Frame, Terminal};
 
 use utils::{Event, Events};
 
 use crate::engine::Engine;
 use crate::format::MessageFormat;
 use crate::tui::stream::draw_stream_tab;
+use crate::tui::style::get_color;
 use crate::tui::subscriptions::{draw_subscriptions_tab, handle_subscriptions_input};
 use crate::tui::tabs::TabsState;
 
@@ -27,12 +28,26 @@ mod subscriptions;
 mod tabs;
 mod utils;
 
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum BlockId {
+    None,
+    Tabs,
+    Subscriptions,
+    SubscribeInput,
+}
+
+pub struct Route {
+    pub id: BlockId,
+    pub hovered_block: BlockId,
+    pub active_block: BlockId,
+}
+
 pub struct App {
     tabs: TabsState,
     subscriptions: Vec<String>,
     subscribe_input: String,
     notifications: CircularQueue<Notification>,
-    writing_subscription: bool,
+    navigation: Route,
 }
 
 impl Default for App {
@@ -47,7 +62,11 @@ impl Default for App {
             subscriptions: Vec::new(),
             subscribe_input: String::new(),
             notifications: CircularQueue::with_capacity(100),
-            writing_subscription: false,
+            navigation: Route {
+                id: BlockId::Tabs,
+                hovered_block: BlockId::Tabs,
+                active_block: BlockId::Tabs,
+            },
         }
     }
 }
@@ -61,6 +80,44 @@ pub fn draw_empty_tab<B>(
     B: tui::backend::Backend,
 {
     Block::default().borders(Borders::ALL).render(f, area)
+}
+
+fn draw_tab_block<B>(f: &mut Frame<B>, area: Rect, app: &App)
+where
+    B: Backend,
+{
+    let highlight_state = (
+        app.navigation.active_block == BlockId::Tabs,
+        app.navigation.hovered_block == BlockId::Tabs,
+    );
+
+    let style = get_color(highlight_state);
+
+    Tabs::default()
+        .block(Block::default().borders(Borders::ALL).border_style(style))
+        .titles(&app.tabs.titles)
+        .select(app.tabs.index)
+        .style(get_color((
+            false,
+            app.navigation.active_block == BlockId::Tabs,
+        )))
+        .highlight_style(Style::default().fg(Color::Yellow))
+        .render(f, area);
+}
+
+fn default_route_from_tab(tab_index: usize) -> Route {
+    match tab_index {
+        0 => Route {
+            id: BlockId::Subscriptions,
+            active_block: BlockId::None,
+            hovered_block: BlockId::SubscribeInput,
+        },
+        _ => Route {
+            id: BlockId::Tabs,
+            active_block: BlockId::Tabs,
+            hovered_block: BlockId::Tabs,
+        },
+    }
 }
 
 pub fn start_tui(engine: Engine, format_options: MessageFormat) -> Result<(), failure::Error> {
@@ -93,17 +150,7 @@ pub fn start_tui(engine: Engine, format_options: MessageFormat) -> Result<(), fa
                 .constraints([Constraint::Length(3), Constraint::Min(0)].as_ref())
                 .split(size);
 
-            Block::default()
-                .style(Style::default().bg(Color::White))
-                .render(&mut f, size);
-
-            Tabs::default()
-                .block(Block::default().borders(Borders::ALL))
-                .titles(&app.tabs.titles)
-                .select(app.tabs.index)
-                .style(Style::default().fg(Color::Cyan))
-                .highlight_style(Style::default().fg(Color::Yellow))
-                .render(&mut f, chunks[0]);
+            draw_tab_block(&mut f, chunks[0], &app);
 
             match app.tabs.index {
                 0 => draw_subscriptions_tab(&mut f, chunks[1], &mut app),
@@ -116,15 +163,22 @@ pub fn start_tui(engine: Engine, format_options: MessageFormat) -> Result<(), fa
 
         match events.next()? {
             Event::Input(input) => match input {
-                Key::Char('q') => {
+                Key::Ctrl('c') => {
                     break;
                 }
-                Key::Right => app.tabs.next(),
-                Key::Left => app.tabs.previous(),
-
-                c => match app.tabs.index {
-                    0 => handle_subscriptions_input(c, &mut app, &engine_tx),
-                    _ => {}
+                c => match app.navigation.id {
+                    BlockId::Tabs => match c {
+                        Key::Right => app.tabs.next(),
+                        Key::Left => app.tabs.previous(),
+                        Key::Down | Key::Char('j') => {
+                            app.navigation = default_route_from_tab(app.tabs.index);
+                        }
+                        _ => (),
+                    },
+                    BlockId::Subscriptions | BlockId::SubscribeInput => {
+                        handle_subscriptions_input(c, &mut app, &engine_tx)
+                    }
+                    _ => (),
                 },
             },
             Event::MqttNotification(notification) => {
