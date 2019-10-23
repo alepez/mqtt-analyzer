@@ -3,11 +3,8 @@ extern crate clap;
 extern crate colored;
 extern crate hex;
 
-use std::io::{self, Write};
-use std::sync::mpsc;
-use std::thread;
-
 use rumqtt::MqttClient;
+use std::io::{self, Write};
 
 use crate::cli::parse_options;
 use crate::engine::Engine;
@@ -29,42 +26,18 @@ fn start_stream(engine: Engine, format_options: MessageFormat) -> Result<(), fai
 }
 
 fn main() -> Result<(), failure::Error> {
-    let options = parse_options();
-
     let cli::Options {
         format: format_options,
         mqtt: mqtt_options,
         subscriptions,
         tui,
-    } = options;
+    } = parse_options();
 
-    let (mut client, notifications) = MqttClient::start(mqtt_options).unwrap();
+    let (client, notifications) = MqttClient::start(mqtt_options).unwrap();
 
-    let (client_tx, client_rx) = mpsc::channel();
+    let engine = Engine::new(notifications, client);
 
-    let engine = Engine::new(notifications, client_tx);
-
-    thread::spawn(move || loop {
-        match client_rx.recv() {
-            Ok(event) => match event {
-                engine::Event::Subscribe(sub) => {
-                    client
-                        .subscribe(sub.as_str(), rumqtt::QoS::AtLeastOnce)
-                        .unwrap();
-                }
-                engine::Event::Unsubscribe(sub) => {
-                    client.unsubscribe(sub).unwrap();
-                }
-            },
-            Err(e) => panic!("Error"),
-        }
-    });
-
-    for subscription in subscriptions.iter() {
-        engine
-            .tx()
-            .send(engine::Event::Subscribe(subscription.clone()));
-    }
+    engine.subscribe_all(subscriptions);
 
     if tui {
         start_tui(engine, format_options)

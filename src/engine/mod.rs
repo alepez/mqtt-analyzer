@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::sync::mpsc::{Receiver, Sender};
 use std::thread;
 
-use rumqtt::Notification;
+use rumqtt::{MqttClient, Notification};
 
 pub enum Event {
     Subscribe(String),
@@ -17,15 +17,21 @@ pub struct Engine {
 }
 
 impl Engine {
-    pub fn new(notifications: rumqtt::Receiver<Notification>, client_tx: Sender<Event>) -> Engine {
+    pub fn new(notifications: rumqtt::Receiver<Notification>, mut client: MqttClient) -> Engine {
         let (tx, rx) = std::sync::mpsc::channel();
         let thread = thread::spawn(move || loop {
             match rx.recv() {
                 Ok(event) => match event {
-                    Event::Subscribe(_) => client_tx.send(event).unwrap(),
-                    Event::Unsubscribe(_) => client_tx.send(event).unwrap(),
+                    Event::Subscribe(sub) => {
+                        client
+                            .subscribe(sub.as_str(), rumqtt::QoS::AtLeastOnce)
+                            .unwrap();
+                    }
+                    Event::Unsubscribe(sub) => {
+                        client.unsubscribe(sub).unwrap();
+                    }
                 },
-                Err(_) => panic!("?"),
+                Err(e) => panic!("{:?}", e),
             };
         });
 
@@ -34,6 +40,12 @@ impl Engine {
             tx,
             thread,
         }
+    }
+
+    pub fn subscribe_all(&self, subscriptions: Vec<String>) {
+        subscriptions
+            .into_iter()
+            .for_each(|subscription| self.tx().send(Event::Subscribe(subscription)).unwrap());
     }
 
     pub fn tx(&self) -> Sender<Event> {
