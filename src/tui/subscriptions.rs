@@ -16,8 +16,8 @@ where
     B: Backend,
 {
     let highlight_state = (
-        app.navigation.active_block == BlockId::SubscribeInput,
-        app.navigation.hovered_block == BlockId::SubscribeInput,
+        app.navigation.peek().hovered_block == BlockId::SubscribeInput,
+        app.navigation.peek().hovered_block == BlockId::SubscribeInput,
     );
 
     Paragraph::new([Text::raw(&app.subscribe_input)].iter())
@@ -59,47 +59,40 @@ where
         .render(f, chunks[1]);
 }
 
-pub fn handle_subscriptions_input(input: Key, app: &mut App, engine_tx: &Sender<Event>) {
-    let writing_subscription = app.navigation.active_block == BlockId::SubscribeInput;
-
+fn handle_subscriptions_input_on_subscribe(input: Key, app: &mut App, engine_tx: &Sender<Event>) {
     match input {
         Key::Up => {
-            app.navigation = Route {
+            app.navigation.pop();
+            app.navigation.push(Route {
                 id: BlockId::Tabs,
                 active_block: BlockId::Tabs,
                 hovered_block: BlockId::Tabs,
-            }
+            })
         }
         Key::Char('\n') => {
-            if writing_subscription {
-                let sub: String = app.subscribe_input.drain(..).collect();
+            let sub: String = app.subscribe_input.drain(..).collect();
+            if !sub.is_empty() {
                 engine_tx
                     .send(crate::engine::Event::Subscribe(sub.clone()))
                     .unwrap();
-            } else {
-                app.navigation.active_block = BlockId::SubscribeInput;
-            }
-        }
-        Key::Char('/') => {
-            if writing_subscription {
-                app.subscribe_input.push('/');
-            }
-        }
-        Key::Esc => {
-            if writing_subscription {
-                app.navigation.active_block = BlockId::None;
             }
         }
         Key::Char(c) => {
-            if writing_subscription {
-                app.subscribe_input.push(c);
-            }
+            app.subscribe_input.push(c);
         }
         Key::Backspace => {
-            if writing_subscription {
-                app.subscribe_input.pop();
-            }
+            app.subscribe_input.pop();
         }
         _ => {}
+    }
+}
+
+fn handle_subscriptions_input_on_list(input: Key, app: &mut App, engine_tx: &Sender<Event>) {}
+
+pub fn handle_subscriptions_input(input: Key, app: &mut App, engine_tx: &Sender<Event>) {
+    match app.navigation.peek().active_block {
+        BlockId::SubscribeInput => handle_subscriptions_input_on_subscribe(input, app, engine_tx),
+        BlockId::Subscriptions => handle_subscriptions_input_on_list(input, app, engine_tx),
+        _ => (),
     }
 }

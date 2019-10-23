@@ -1,3 +1,4 @@
+use std::collections::LinkedList;
 use std::io::{self};
 use std::thread;
 
@@ -30,6 +31,7 @@ mod utils;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum BlockId {
+    Root,
     None,
     Tabs,
     Subscriptions,
@@ -42,12 +44,46 @@ pub struct Route {
     pub active_block: BlockId,
 }
 
+struct Navigation(LinkedList<Route>);
+
+impl Navigation {
+    const ROOT: Route = Route {
+        id: BlockId::Root,
+        hovered_block: BlockId::Tabs,
+        active_block: BlockId::Tabs,
+    };
+
+    fn new() -> Navigation {
+        let mut ls = LinkedList::new();
+        ls.push_back(Self::ROOT);
+        Navigation(ls)
+    }
+
+    fn push(&mut self, route: Route) {
+        self.0.push_back(route);
+    }
+
+    fn peek(&self) -> &Route {
+        self.0.back().unwrap()
+    }
+
+    fn peek_mut(&mut self) -> &mut Route {
+        self.0.back_mut().unwrap()
+    }
+
+    fn pop(&mut self) {
+        if self.0.len() > 1 {
+            self.0.pop_back().unwrap();
+        }
+    }
+}
+
 pub struct App {
     engine: Engine,
     tabs: TabsState,
     subscribe_input: String,
     notifications: CircularQueue<Notification>,
-    navigation: Route,
+    navigation: Navigation,
 }
 
 impl App {
@@ -62,11 +98,7 @@ impl App {
             tabs: TabsState::new(tabs),
             subscribe_input: String::new(),
             notifications: CircularQueue::with_capacity(100),
-            navigation: Route {
-                id: BlockId::Tabs,
-                hovered_block: BlockId::Tabs,
-                active_block: BlockId::Tabs,
-            },
+            navigation: Navigation::new(),
         }
     }
 }
@@ -87,8 +119,8 @@ where
     B: Backend,
 {
     let highlight_state = (
-        app.navigation.active_block == BlockId::Tabs,
-        app.navigation.hovered_block == BlockId::Tabs,
+        app.navigation.peek().active_block == BlockId::Tabs,
+        app.navigation.peek().hovered_block == BlockId::Tabs,
     );
 
     let style = get_color(highlight_state);
@@ -99,7 +131,7 @@ where
         .select(app.tabs.index)
         .style(get_color((
             false,
-            app.navigation.active_block == BlockId::Tabs,
+            app.navigation.peek().active_block == BlockId::Tabs,
         )))
         .highlight_style(Style::default().fg(Color::Yellow))
         .render(f, area);
@@ -108,12 +140,12 @@ where
 fn default_route_from_tab(tab_index: usize) -> Route {
     match tab_index {
         0 => Route {
-            id: BlockId::Subscriptions,
-            active_block: BlockId::None,
+            id: BlockId::Root,
+            active_block: BlockId::SubscribeInput,
             hovered_block: BlockId::SubscribeInput,
         },
         _ => Route {
-            id: BlockId::Tabs,
+            id: BlockId::Root,
             active_block: BlockId::Tabs,
             hovered_block: BlockId::Tabs,
         },
@@ -168,12 +200,13 @@ pub fn start_tui(engine: Engine, format_options: MessageFormat) -> Result<(), fa
                 Key::Ctrl('c') => {
                     break;
                 }
-                c => match app.navigation.id {
+                c => match app.navigation.peek().hovered_block {
                     BlockId::Tabs => match c {
                         Key::Right => app.tabs.next(),
                         Key::Left => app.tabs.previous(),
                         Key::Down | Key::Char('j') => {
-                            app.navigation = default_route_from_tab(app.tabs.index);
+                            app.navigation.pop();
+                            app.navigation.push(default_route_from_tab(app.tabs.index));
                         }
                         _ => (),
                     },
