@@ -43,7 +43,12 @@ where
 
     draw_subscribe_text_input(f, chunks[0], app);
 
-    let subscriptions = app.subscriptions.iter().map(Text::raw);
+    let subscriptions = app
+        .engine
+        .subscriptions
+        .read()
+        .map(|subscriptions| subscriptions.clone().into_iter().map(Text::raw))
+        .unwrap();
 
     List::new(subscriptions)
         .block(
@@ -71,7 +76,6 @@ pub fn handle_subscriptions_input(input: Key, app: &mut App, engine_tx: &Sender<
                 engine_tx
                     .send(crate::engine::Event::Subscribe(sub.clone()))
                     .unwrap();
-                app.subscriptions.push(sub);
             } else {
                 app.navigation.active_block = BlockId::SubscribeInput;
             }

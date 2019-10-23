@@ -2,7 +2,7 @@ use std::io::{self};
 use std::thread;
 
 use circular_queue::CircularQueue;
-use rumqtt::{Notification, Receiver};
+use rumqtt::Notification;
 use termion::event::Key;
 use termion::input::MouseTerminal;
 use termion::raw::IntoRawMode;
@@ -43,23 +43,23 @@ pub struct Route {
 }
 
 pub struct App {
+    engine: Engine,
     tabs: TabsState,
-    subscriptions: Vec<String>,
     subscribe_input: String,
     notifications: CircularQueue<Notification>,
     navigation: Route,
 }
 
-impl Default for App {
-    fn default() -> App {
+impl App {
+    fn new(engine: Engine) -> App {
         let tabs = vec!["Subscriptions", "Stream", "Retain", "Statistics"]
             .iter()
             .map(|&s| String::from(s))
             .collect();
 
         App {
+            engine,
             tabs: TabsState::new(tabs),
-            subscriptions: Vec::new(),
             subscribe_input: String::new(),
             notifications: CircularQueue::with_capacity(100),
             navigation: Route {
@@ -127,16 +127,18 @@ pub fn start_tui(engine: Engine, format_options: MessageFormat) -> Result<(), fa
     let backend = TermionBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let engine_tx = engine.tx();
     terminal.hide_cursor()?;
 
     let events = Events::new();
 
-    let mut app = App::default();
-
     let tx = events.tx();
+    let engine_tx = engine.tx();
+
+    let notifications = engine.notifications.clone();
+    let mut app = App::new(engine);
+
     thread::spawn(move || {
-        for notification in engine.notifications {
+        for notification in notifications {
             tx.send(Event::MqttNotification(notification)).unwrap();
         }
     });

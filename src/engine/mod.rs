@@ -1,5 +1,6 @@
 use std::collections::HashSet;
-use std::sync::mpsc::{Receiver, Sender};
+use std::sync::mpsc::Sender;
+use std::sync::{Arc, RwLock};
 use std::thread;
 
 use rumqtt::{MqttClient, Notification};
@@ -9,8 +10,12 @@ pub enum Event {
     Unsubscribe(String),
 }
 
+type Subscriptions = HashSet<String>;
+type SharedSubscriptions = Arc<RwLock<Subscriptions>>;
+
 pub struct Engine {
     pub notifications: rumqtt::Receiver<Notification>,
+    pub subscriptions: SharedSubscriptions,
     tx: Sender<Event>,
     #[allow(dead_code)]
     thread: thread::JoinHandle<()>,
@@ -19,6 +24,10 @@ pub struct Engine {
 impl Engine {
     pub fn new(notifications: rumqtt::Receiver<Notification>, mut client: MqttClient) -> Engine {
         let (tx, rx) = std::sync::mpsc::channel();
+
+        let subscriptions = SharedSubscriptions::new(RwLock::new(HashSet::new()));
+        let subscriptions2 = subscriptions.clone();
+
         let thread = thread::spawn(move || loop {
             match rx.recv() {
                 Ok(event) => match event {
@@ -26,8 +35,18 @@ impl Engine {
                         client
                             .subscribe(sub.as_str(), rumqtt::QoS::AtLeastOnce)
                             .unwrap();
+
+                        subscriptions
+                            .write()
+                            .map(|mut subscriptions| subscriptions.insert(sub))
+                            .unwrap();
                     }
                     Event::Unsubscribe(sub) => {
+                        subscriptions
+                            .write()
+                            .map(|mut subscriptions| subscriptions.remove(sub.as_str()))
+                            .unwrap();
+
                         client.unsubscribe(sub).unwrap();
                     }
                 },
@@ -36,6 +55,7 @@ impl Engine {
         });
 
         Engine {
+            subscriptions: subscriptions2,
             notifications,
             tx,
             thread,
