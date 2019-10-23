@@ -116,7 +116,10 @@ fn draw_tab_block<B>(f: &mut Frame<B>, area: Rect, app: &App)
 where
     B: Backend,
 {
-    let highlight_state = (true, app.navigation.peek().hovered_block == BlockId::Tabs);
+    let highlight_state = (
+        app.navigation.peek().hovered_block == BlockId::Tabs,
+        app.navigation.peek().hovered_block == BlockId::Tabs,
+    );
 
     let style = get_color(highlight_state);
 

@@ -1,5 +1,6 @@
 use std::sync::mpsc::Sender;
 
+use colored::Color::Black;
 use termion::event::Key;
 use tui::backend::Backend;
 use tui::layout::{Constraint, Direction, Layout, Rect};
@@ -50,11 +51,18 @@ where
         .map(|subscriptions| subscriptions.clone().into_iter().map(Text::raw))
         .unwrap();
 
+    let highlight_state = (
+        app.navigation.peek().id == BlockId::Subscriptions,
+        app.navigation.peek().hovered_block == BlockId::Subscriptions,
+    );
+
     List::new(subscriptions)
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .title("Subscriptions"),
+                .title("Subscriptions")
+                .title_style(get_color(highlight_state))
+                .border_style(get_color(highlight_state)),
         )
         .render(f, chunks[1]);
 }
@@ -62,11 +70,12 @@ where
 fn handle_subscriptions_input_on_subscribe(input: Key, app: &mut App, engine_tx: &Sender<Event>) {
     match input {
         Key::Up => {
-            app.navigation.pop();
-            app.navigation.push(Route {
-                id: BlockId::Tabs,
-                hovered_block: BlockId::Tabs,
-            })
+            app.navigation.peek_mut().hovered_block = BlockId::Tabs;
+            app.subscribe_input.clear();
+        }
+        Key::Down => {
+            app.navigation.peek_mut().hovered_block = BlockId::Subscriptions;
+            app.subscribe_input.clear();
         }
         Key::Char('\n') => {
             let sub: String = app.subscribe_input.drain(..).collect();
@@ -76,22 +85,69 @@ fn handle_subscriptions_input_on_subscribe(input: Key, app: &mut App, engine_tx:
                     .unwrap();
             }
         }
-        Key::Char(c) => {
-            app.subscribe_input.push(c);
-        }
         Key::Backspace => {
             app.subscribe_input.pop();
+        }
+        Key::Char(c) => {
+            app.subscribe_input.push(c);
         }
         _ => {}
     }
 }
 
-fn handle_subscriptions_input_on_list(input: Key, app: &mut App, engine_tx: &Sender<Event>) {}
+fn handle_subscriptions_input_on_list(input: Key, app: &mut App, engine_tx: &Sender<Event>) {
+    match input {
+        Key::Up => {
+            app.navigation.peek_mut().hovered_block = BlockId::SubscribeInput;
+            app.subscribe_input.clear();
+        }
+        Key::Down => {
+            app.navigation.peek_mut().hovered_block = BlockId::Tabs;
+            app.subscribe_input.clear();
+        }
+        Key::Char('d') | Key::Backspace | Key::Delete => {
+            // TODO Delete subscription
+        }
+        Key::Char('\n') => app.navigation.push(Route {
+            id: BlockId::Subscriptions,
+            hovered_block: BlockId::None,
+        }),
+        _ => {}
+    }
+}
+
+fn handle_subscriptions_input_on_active_list(input: Key, app: &mut App, engine_tx: &Sender<Event>) {
+    match input {
+        Key::Esc | Key::Char('q') => {
+            // TODO Something doesn't work here
+            app.navigation.pop()
+        }
+        Key::Up => {
+            // TODO To upper element
+        }
+        Key::Down => {
+            // TODO To lower element
+        }
+        Key::Char('d') | Key::Backspace | Key::Delete => {
+            // TODO Delete element
+        }
+        _ => {}
+    }
+}
 
 pub fn handle_subscriptions_input(input: Key, app: &mut App, engine_tx: &Sender<Event>) {
-    match app.navigation.peek().hovered_block {
-        BlockId::SubscribeInput => handle_subscriptions_input_on_subscribe(input, app, engine_tx),
-        BlockId::Subscriptions => handle_subscriptions_input_on_list(input, app, engine_tx),
+    let route = app.navigation.peek();
+    // TODO This code smells, we should go root to leaf instead of leaf to root
+
+    match route.id {
+        BlockId::Root => match route.hovered_block {
+            BlockId::SubscribeInput => {
+                handle_subscriptions_input_on_subscribe(input, app, engine_tx)
+            }
+            BlockId::Subscriptions => handle_subscriptions_input_on_list(input, app, engine_tx),
+            _ => (),
+        },
+        BlockId::Subscriptions => handle_subscriptions_input_on_active_list(input, app, engine_tx),
         _ => (),
     }
 }
