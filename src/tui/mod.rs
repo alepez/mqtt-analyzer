@@ -41,7 +41,6 @@ pub enum BlockId {
 pub struct Route {
     pub id: BlockId,
     pub hovered_block: BlockId,
-    pub active_block: BlockId,
 }
 
 struct Navigation(LinkedList<Route>);
@@ -50,7 +49,6 @@ impl Navigation {
     const ROOT: Route = Route {
         id: BlockId::Root,
         hovered_block: BlockId::Tabs,
-        active_block: BlockId::Tabs,
     };
 
     fn new() -> Navigation {
@@ -118,10 +116,7 @@ fn draw_tab_block<B>(f: &mut Frame<B>, area: Rect, app: &App)
 where
     B: Backend,
 {
-    let highlight_state = (
-        app.navigation.peek().active_block == BlockId::Tabs,
-        app.navigation.peek().hovered_block == BlockId::Tabs,
-    );
+    let highlight_state = (true, app.navigation.peek().hovered_block == BlockId::Tabs);
 
     let style = get_color(highlight_state);
 
@@ -129,10 +124,7 @@ where
         .block(Block::default().borders(Borders::ALL).border_style(style))
         .titles(&app.tabs.titles)
         .select(app.tabs.index)
-        .style(get_color((
-            false,
-            app.navigation.peek().active_block == BlockId::Tabs,
-        )))
+        .style(style)
         .highlight_style(Style::default().fg(Color::Yellow))
         .render(f, area);
 }
@@ -141,12 +133,10 @@ fn default_route_from_tab(tab_index: usize) -> Route {
     match tab_index {
         0 => Route {
             id: BlockId::Root,
-            active_block: BlockId::SubscribeInput,
             hovered_block: BlockId::SubscribeInput,
         },
         _ => Route {
             id: BlockId::Root,
-            active_block: BlockId::Tabs,
             hovered_block: BlockId::Tabs,
         },
     }

@@ -65,7 +65,6 @@ fn handle_subscriptions_input_on_subscribe(input: Key, app: &mut App, engine_tx:
             app.navigation.pop();
             app.navigation.push(Route {
                 id: BlockId::Tabs,
-                active_block: BlockId::Tabs,
                 hovered_block: BlockId::Tabs,
             })
         }
@@ -90,7 +89,7 @@ fn handle_subscriptions_input_on_subscribe(input: Key, app: &mut App, engine_tx:
 fn handle_subscriptions_input_on_list(input: Key, app: &mut App, engine_tx: &Sender<Event>) {}
 
 pub fn handle_subscriptions_input(input: Key, app: &mut App, engine_tx: &Sender<Event>) {
-    match app.navigation.peek().active_block {
+    match app.navigation.peek().hovered_block {
         BlockId::SubscribeInput => handle_subscriptions_input_on_subscribe(input, app, engine_tx),
         BlockId::Subscriptions => handle_subscriptions_input_on_list(input, app, engine_tx),
         _ => (),
