@@ -10,7 +10,7 @@ use tui::Frame;
 
 use crate::engine::Event;
 use crate::tui::style::get_color;
-use crate::tui::{App, BlockId, Route};
+use crate::tui::{App, BlockId, Breadcrumbs, Route};
 
 fn draw_subscribe_text_input<B>(f: &mut Frame<B>, area: Rect, app: &App)
 where
@@ -95,33 +95,39 @@ fn handle_subscriptions_input_on_subscribe(input: Key, app: &mut App, engine_tx:
     }
 }
 
-fn handle_subscriptions_input_on_list(input: Key, app: &mut App, engine_tx: &Sender<Event>) {
-    match input {
-        Key::Up => {
-            app.navigation.peek_mut().hovered_block = BlockId::SubscribeInput;
-            app.subscribe_input.clear();
+fn handle_subscriptions_input_on_list(
+    input: Key,
+    app: &mut App,
+    engine_tx: &Sender<Event>,
+    breadcrumbs: Breadcrumbs,
+) {
+    match breadcrumbs.front().map(|x| x.id) {
+        None => {
+            match input {
+                Key::Up => {
+                    app.navigation.peek_mut().hovered_block = BlockId::SubscribeInput;
+                    app.subscribe_input.clear();
+                }
+                Key::Char('d') | Key::Backspace | Key::Delete => {
+                    // TODO Delete subscription
+                }
+                Key::Char('\n') => app.navigation.push(Route {
+                    id: BlockId::Subscriptions,
+                    hovered_block: BlockId::None,
+                }),
+                _ => {}
+            }
         }
-        Key::Down => {
-            app.navigation.peek_mut().hovered_block = BlockId::Tabs;
-            app.subscribe_input.clear();
+        Some(BlockId::Subscriptions) => {
+            handle_subscriptions_input_on_active_list(input, app, engine_tx)
         }
-        Key::Char('d') | Key::Backspace | Key::Delete => {
-            // TODO Delete subscription
-        }
-        Key::Char('\n') => app.navigation.push(Route {
-            id: BlockId::Subscriptions,
-            hovered_block: BlockId::None,
-        }),
-        _ => {}
+        x => panic!("{:?}", x),
     }
 }
 
 fn handle_subscriptions_input_on_active_list(input: Key, app: &mut App, engine_tx: &Sender<Event>) {
     match input {
-        Key::Esc | Key::Char('q') => {
-            // TODO Something doesn't work here
-            app.navigation.pop()
-        }
+        Key::Esc | Key::Char('q') => app.navigation.pop(),
         Key::Up => {
             // TODO To upper element
         }
@@ -135,19 +141,22 @@ fn handle_subscriptions_input_on_active_list(input: Key, app: &mut App, engine_t
     }
 }
 
-pub fn handle_subscriptions_input(input: Key, app: &mut App, engine_tx: &Sender<Event>) {
-    let route = app.navigation.peek();
-    // TODO This code smells, we should go root to leaf instead of leaf to root
-
-    match route.id {
-        BlockId::Root => match route.hovered_block {
-            BlockId::SubscribeInput => {
+pub fn handle_subscriptions_input(
+    input: Key,
+    app: &mut App,
+    engine_tx: &Sender<Event>,
+    mut breadcrumbs: Breadcrumbs,
+) {
+    match breadcrumbs.front().map(|x| x.id) {
+        Some(BlockId::Root) => match breadcrumbs.front().map(|x| x.hovered_block) {
+            Some(BlockId::SubscribeInput) => {
                 handle_subscriptions_input_on_subscribe(input, app, engine_tx)
             }
-            BlockId::Subscriptions => handle_subscriptions_input_on_list(input, app, engine_tx),
-            _ => (),
+            Some(BlockId::Subscriptions) => {
+                handle_subscriptions_input_on_list(input, app, engine_tx, breadcrumbs.split_off(1))
+            }
+            x => panic!("{:?}", x),
         },
-        BlockId::Subscriptions => handle_subscriptions_input_on_active_list(input, app, engine_tx),
-        _ => (),
+        x => panic!("{:?}", x),
     }
 }

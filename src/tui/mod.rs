@@ -38,12 +38,14 @@ pub enum BlockId {
     SubscribeInput,
 }
 
+#[derive(Clone)]
 pub struct Route {
     pub id: BlockId,
     pub hovered_block: BlockId,
 }
 
-struct Navigation(LinkedList<Route>);
+type Breadcrumbs = LinkedList<Route>;
+struct Navigation(Breadcrumbs);
 
 impl Navigation {
     const ROOT: Route = Route {
@@ -73,6 +75,10 @@ impl Navigation {
         if self.0.len() > 1 {
             self.0.pop_back().unwrap();
         }
+    }
+
+    fn breadcrumbs(&self) -> LinkedList<Route> {
+        self.0.clone()
     }
 }
 
@@ -188,23 +194,24 @@ pub fn start_tui(engine: Engine, format_options: MessageFormat) -> Result<(), fa
             }
         })?;
 
+        let mut nav = app.navigation.breadcrumbs();
+
         match events.next()? {
             Event::Input(input) => match input {
                 Key::Ctrl('c') => {
                     break;
                 }
-                c => match app.navigation.peek().hovered_block {
-                    BlockId::Tabs => match c {
+                c => match nav.front().map(|x| x.hovered_block) {
+                    Some(BlockId::Tabs) => match c {
                         Key::Right => app.tabs.next(),
                         Key::Left => app.tabs.previous(),
                         Key::Down | Key::Char('j') => {
-                            app.navigation.pop();
-                            app.navigation.push(default_route_from_tab(app.tabs.index));
+                            *app.navigation.peek_mut() = default_route_from_tab(app.tabs.index);
                         }
                         _ => (),
                     },
-                    BlockId::Subscriptions | BlockId::SubscribeInput => {
-                        handle_subscriptions_input(c, &mut app, &engine_tx)
+                    Some(BlockId::Subscriptions) | Some(BlockId::SubscribeInput) => {
+                        handle_subscriptions_input(c, &mut app, &engine_tx, nav)
                     }
                     _ => (),
                 },
