@@ -9,6 +9,7 @@ use tui::widgets::{Block, Borders, List, Paragraph, Text, Widget};
 use tui::Frame;
 
 use crate::engine::Event;
+use crate::engine::Event::Unsubscribe;
 use crate::tui::style::get_color;
 use crate::tui::{App, BlockId, Breadcrumbs, Route};
 
@@ -135,7 +136,16 @@ fn handle_subscriptions_input_on_active_list(input: Key, app: &mut App, engine_t
             // TODO To lower element
         }
         Key::Char('d') | Key::Backspace | Key::Delete => {
-            // TODO Delete element
+            // TODO Delete select element (now delete the first)
+            let sub = app
+                .engine
+                .subscriptions
+                .read()
+                .map(|x| x.iter().next().cloned());
+            if let Ok(Some(sub)) = sub {
+                // TODO MqttClient does not yet implement unsubscribe
+                engine_tx.send(Unsubscribe(sub)).unwrap();
+            }
         }
         _ => {}
     }

@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, RwLock};
 use std::thread;
@@ -10,7 +10,7 @@ pub enum Event {
     Unsubscribe(String),
 }
 
-type Subscriptions = HashSet<String>;
+type Subscriptions = BTreeSet<String>;
 type SharedSubscriptions = Arc<RwLock<Subscriptions>>;
 
 pub struct Engine {
@@ -25,7 +25,7 @@ impl Engine {
     pub fn new(notifications: rumqtt::Receiver<Notification>, mut client: MqttClient) -> Engine {
         let (tx, rx) = std::sync::mpsc::channel();
 
-        let subscriptions = SharedSubscriptions::new(RwLock::new(HashSet::new()));
+        let subscriptions = SharedSubscriptions::new(RwLock::new(Subscriptions::new()));
         let subscriptions2 = subscriptions.clone();
 
         let thread = thread::spawn(move || loop {
