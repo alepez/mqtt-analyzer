@@ -1,4 +1,3 @@
-use std::collections::LinkedList;
 use std::io::{self};
 use std::thread;
 
@@ -17,10 +16,11 @@ use tui::{Frame, Terminal};
 use utils::{Event, Events};
 
 use crate::engine::Engine;
+use crate::engine::Event::Unsubscribe;
 use crate::format::MessageFormat;
 use crate::tui::stream::draw_stream_tab;
 use crate::tui::style::get_color;
-use crate::tui::subscriptions::{draw_subscriptions_tab, handle_subscriptions_input};
+use crate::tui::subscriptions::draw_subscriptions_tab;
 use crate::tui::tabs::TabsState;
 
 mod stream;
@@ -32,53 +32,47 @@ mod utils;
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum BlockId {
     Root,
-    None,
+    SubscriptionsWindow,
     Tabs,
-    Subscriptions,
     SubscribeInput,
+    SubscriptionsList,
+    SubscriptionsListItem(usize),
 }
 
-#[derive(Clone)]
-pub struct Route {
-    pub id: BlockId,
-    pub hovered_block: BlockId,
-}
-
-type Breadcrumbs = LinkedList<Route>;
-struct Navigation(Breadcrumbs);
+struct Navigation(Vec<BlockId>);
 
 impl Navigation {
-    const ROOT: Route = Route {
-        id: BlockId::Root,
-        hovered_block: BlockId::Tabs,
-    };
-
     fn new() -> Navigation {
-        let mut ls = LinkedList::new();
-        ls.push_back(Self::ROOT);
-        Navigation(ls)
+        let mut lst = Vec::new();
+        lst.push(BlockId::Root);
+        Navigation(lst)
     }
 
-    fn push(&mut self, route: Route) {
-        self.0.push_back(route);
+    fn push(&mut self, block_id: BlockId) {
+        self.0.push(block_id);
     }
 
-    fn peek(&self) -> &Route {
-        self.0.back().unwrap()
+    fn peek(&self) -> BlockId {
+        self.0.last().cloned().unwrap_or(BlockId::Root)
     }
 
-    fn peek_mut(&mut self) -> &mut Route {
-        self.0.back_mut().unwrap()
-    }
-
-    fn pop(&mut self) {
-        if self.0.len() > 1 {
-            self.0.pop_back().unwrap();
+    fn parent(&self) -> BlockId {
+        if self.0.len() < 2 {
+            BlockId::Root
+        } else {
+            self.0
+                .get(self.0.len() - 2)
+                .cloned()
+                .unwrap_or(BlockId::Root)
         }
     }
 
-    fn breadcrumbs(&self) -> LinkedList<Route> {
-        self.0.clone()
+    fn pop(&mut self) {
+        self.0.pop();
+    }
+
+    fn modify_top(&mut self, new_value: BlockId) {
+        *self.0.last_mut().unwrap() = new_value
     }
 }
 
@@ -123,8 +117,8 @@ where
     B: Backend,
 {
     let highlight_state = (
-        app.navigation.peek().hovered_block == BlockId::Tabs,
-        app.navigation.peek().hovered_block == BlockId::Tabs,
+        app.navigation.peek() == BlockId::Tabs,
+        app.navigation.peek() == BlockId::Tabs,
     );
 
     let style = get_color(highlight_state);
@@ -136,19 +130,6 @@ where
         .style(style)
         .highlight_style(Style::default().fg(Color::Yellow))
         .render(f, area);
-}
-
-fn default_route_from_tab(tab_index: usize) -> Route {
-    match tab_index {
-        0 => Route {
-            id: BlockId::Root,
-            hovered_block: BlockId::SubscribeInput,
-        },
-        _ => Route {
-            id: BlockId::Root,
-            hovered_block: BlockId::Tabs,
-        },
-    }
 }
 
 pub fn start_tui(engine: Engine, format_options: MessageFormat) -> Result<(), failure::Error> {
@@ -194,25 +175,82 @@ pub fn start_tui(engine: Engine, format_options: MessageFormat) -> Result<(), fa
             }
         })?;
 
-        let mut nav = app.navigation.breadcrumbs();
+        let nav = &mut app.navigation;
 
         match events.next()? {
             Event::Input(input) => match input {
                 Key::Ctrl('c') => {
                     break;
                 }
-                c => match nav.front().map(|x| x.hovered_block) {
-                    Some(BlockId::Tabs) => match c {
+                Key::Esc => nav.pop(),
+                c => match nav.peek() {
+                    BlockId::Root => {
+                        nav.push(BlockId::SubscriptionsWindow);
+                        nav.push(BlockId::Tabs);
+                    }
+                    BlockId::Tabs => match c {
                         Key::Right => app.tabs.next(),
                         Key::Left => app.tabs.previous(),
                         Key::Down | Key::Char('j') => {
-                            *app.navigation.peek_mut() = default_route_from_tab(app.tabs.index);
+                            nav.modify_top(BlockId::SubscribeInput);
                         }
                         _ => (),
                     },
-                    Some(BlockId::Subscriptions) | Some(BlockId::SubscribeInput) => {
-                        handle_subscriptions_input(c, &mut app, &engine_tx, nav)
-                    }
+                    BlockId::SubscribeInput => match c {
+                        Key::Up => {
+                            app.subscribe_input.clear();
+                            app.navigation.modify_top(BlockId::Tabs);
+                        }
+                        Key::Down => {
+                            app.subscribe_input.clear();
+                            app.navigation.modify_top(BlockId::SubscriptionsList);
+                        }
+                        Key::Char('\n') => {
+                            let sub: String = app.subscribe_input.drain(..).collect();
+                            if !sub.is_empty() {
+                                engine_tx
+                                    .send(crate::engine::Event::Subscribe(sub.clone()))
+                                    .unwrap();
+                            }
+                        }
+                        Key::Backspace => {
+                            app.subscribe_input.pop();
+                        }
+                        Key::Char(c) => {
+                            app.subscribe_input.push(c);
+                        }
+                        _ => {}
+                    },
+                    BlockId::SubscriptionsList => match c {
+                        Key::Up => {
+                            app.navigation.modify_top(BlockId::SubscribeInput);
+                        }
+                        Key::Char('\n') => {
+                            app.navigation.push(BlockId::SubscriptionsListItem(0));
+                        }
+                        _ => {}
+                    },
+                    BlockId::SubscriptionsListItem(index) => match c {
+                        Key::Up => {
+                            // TODO To upper element
+                        }
+                        Key::Down => {
+                            // TODO To lower element
+                        }
+                        Key::Char('d') | Key::Char('x') | Key::Backspace | Key::Delete => {
+                            // TODO Delete select element (now delete the first)
+                            let sub = app
+                                .engine
+                                .subscriptions
+                                .read()
+                                .map(|x| x.iter().nth(index).cloned());
+                            if let Ok(Some(sub)) = sub {
+                                // TODO MqttClient does not yet implement unsubscribe
+                                engine_tx.send(Unsubscribe(sub)).unwrap();
+                            }
+                        }
+                        _ => (),
+                    },
                     _ => (),
                 },
             },
