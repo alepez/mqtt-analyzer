@@ -15,8 +15,8 @@ use tui::{Frame, Terminal};
 
 use utils::{Event, Events};
 
+use crate::engine;
 use crate::engine::Engine;
-use crate::engine::Event::Unsubscribe;
 use crate::format::MessageFormat;
 use crate::tui::stream::draw_stream_tab;
 use crate::tui::style::get_color;
@@ -132,6 +132,88 @@ where
         .render(f, area);
 }
 
+fn handle_input(
+    input: termion::event::Key,
+    app: &mut App,
+    engine_tx: std::sync::mpsc::Sender<engine::Event>,
+) {
+    let nav = &mut app.navigation;
+
+    match input {
+        Key::Esc => nav.pop(),
+        c => match nav.peek() {
+            BlockId::Root => {
+                nav.push(BlockId::SubscriptionsWindow);
+                nav.push(BlockId::Tabs);
+            }
+            BlockId::Tabs => match c {
+                Key::Right => app.tabs.next(),
+                Key::Left => app.tabs.previous(),
+                Key::Down | Key::Char('j') => {
+                    nav.modify_top(BlockId::SubscribeInput);
+                }
+                _ => (),
+            },
+            BlockId::SubscribeInput => match c {
+                Key::Up => {
+                    app.subscribe_input.clear();
+                    app.navigation.modify_top(BlockId::Tabs);
+                }
+                Key::Down => {
+                    app.subscribe_input.clear();
+                    app.navigation.modify_top(BlockId::SubscriptionsList);
+                }
+                Key::Char('\n') => {
+                    let sub: String = app.subscribe_input.drain(..).collect();
+                    if !sub.is_empty() {
+                        engine_tx
+                            .send(crate::engine::Event::Subscribe(sub.clone()))
+                            .unwrap();
+                    }
+                }
+                Key::Backspace => {
+                    app.subscribe_input.pop();
+                }
+                Key::Char(c) => {
+                    app.subscribe_input.push(c);
+                }
+                _ => {}
+            },
+            BlockId::SubscriptionsList => match c {
+                Key::Up => {
+                    app.navigation.modify_top(BlockId::SubscribeInput);
+                }
+                Key::Char('\n') => {
+                    app.navigation.push(BlockId::SubscriptionsListItem(0));
+                }
+                _ => {}
+            },
+            BlockId::SubscriptionsListItem(index) => match c {
+                Key::Up => {
+                    // TODO To upper element
+                }
+                Key::Down => {
+                    // TODO To lower element
+                }
+                Key::Char('d') | Key::Char('x') | Key::Backspace | Key::Delete => {
+                    // TODO Delete select element (now delete the first)
+                    let sub = app
+                        .engine
+                        .subscriptions
+                        .read()
+                        .map(|x| x.iter().nth(index).cloned());
+                    if let Ok(Some(sub)) = sub {
+                        // TODO MqttClient does not yet implement unsubscribe
+                        engine_tx.send(engine::Event::Unsubscribe(sub)).unwrap();
+                    }
+                }
+                _ => (),
+            },
+            _ => (),
+        },
+    }
+}
+
 pub fn start_tui(engine: Engine, format_options: MessageFormat) -> Result<(), failure::Error> {
     let stdout = io::stdout().into_raw_mode()?;
     let stdout = MouseTerminal::from(stdout);
@@ -175,85 +257,11 @@ pub fn start_tui(engine: Engine, format_options: MessageFormat) -> Result<(), fa
             }
         })?;
 
-        let nav = &mut app.navigation;
-
         match events.next()? {
-            Event::Input(input) => match input {
-                Key::Ctrl('c') => {
-                    break;
-                }
-                Key::Esc => nav.pop(),
-                c => match nav.peek() {
-                    BlockId::Root => {
-                        nav.push(BlockId::SubscriptionsWindow);
-                        nav.push(BlockId::Tabs);
-                    }
-                    BlockId::Tabs => match c {
-                        Key::Right => app.tabs.next(),
-                        Key::Left => app.tabs.previous(),
-                        Key::Down | Key::Char('j') => {
-                            nav.modify_top(BlockId::SubscribeInput);
-                        }
-                        _ => (),
-                    },
-                    BlockId::SubscribeInput => match c {
-                        Key::Up => {
-                            app.subscribe_input.clear();
-                            app.navigation.modify_top(BlockId::Tabs);
-                        }
-                        Key::Down => {
-                            app.subscribe_input.clear();
-                            app.navigation.modify_top(BlockId::SubscriptionsList);
-                        }
-                        Key::Char('\n') => {
-                            let sub: String = app.subscribe_input.drain(..).collect();
-                            if !sub.is_empty() {
-                                engine_tx
-                                    .send(crate::engine::Event::Subscribe(sub.clone()))
-                                    .unwrap();
-                            }
-                        }
-                        Key::Backspace => {
-                            app.subscribe_input.pop();
-                        }
-                        Key::Char(c) => {
-                            app.subscribe_input.push(c);
-                        }
-                        _ => {}
-                    },
-                    BlockId::SubscriptionsList => match c {
-                        Key::Up => {
-                            app.navigation.modify_top(BlockId::SubscribeInput);
-                        }
-                        Key::Char('\n') => {
-                            app.navigation.push(BlockId::SubscriptionsListItem(0));
-                        }
-                        _ => {}
-                    },
-                    BlockId::SubscriptionsListItem(index) => match c {
-                        Key::Up => {
-                            // TODO To upper element
-                        }
-                        Key::Down => {
-                            // TODO To lower element
-                        }
-                        Key::Char('d') | Key::Char('x') | Key::Backspace | Key::Delete => {
-                            // TODO Delete select element (now delete the first)
-                            let sub = app
-                                .engine
-                                .subscriptions
-                                .read()
-                                .map(|x| x.iter().nth(index).cloned());
-                            if let Ok(Some(sub)) = sub {
-                                // TODO MqttClient does not yet implement unsubscribe
-                                engine_tx.send(Unsubscribe(sub)).unwrap();
-                            }
-                        }
-                        _ => (),
-                    },
-                    _ => (),
-                },
-            },
+            Event::Input(Key::Ctrl('c')) => {
+                break;
+            }
+            Event::Input(input) => handle_input(input, &mut app, engine_tx.clone()),
             Event::MqttNotification(notification) => {
                 app.notifications.push(notification);
             }
