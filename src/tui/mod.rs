@@ -44,10 +44,12 @@ pub enum BlockId {
 struct Navigation(Vec<BlockId>);
 
 impl Navigation {
-    fn new() -> Navigation {
-        let mut lst = Vec::new();
-        lst.push(BlockId::Root);
-        Navigation(lst)
+    fn default() -> Navigation {
+        let mut nav = Vec::new();
+        nav.push(BlockId::Root);
+        nav.push(BlockId::SubscriptionsWindow);
+        nav.push(BlockId::TabNav);
+        Navigation(nav)
     }
 
     fn push(&mut self, block_id: BlockId) {
@@ -98,7 +100,7 @@ impl App {
             tabs: TabsState::new(tabs),
             subscribe_input: String::new(),
             notifications: CircularQueue::with_capacity(100),
-            navigation: Navigation::new(),
+            navigation: Navigation::default(),
         }
     }
 }
@@ -106,7 +108,7 @@ impl App {
 pub fn draw_empty_tab<B>(
     f: &mut tui::Frame<B>,
     area: tui::layout::Rect,
-    _app: &mut App,
+    _app: &App,
     _format: MessageFormat,
 ) where
     B: tui::backend::Backend,
@@ -149,7 +151,14 @@ fn handle_input(input: termion::event::Key, app: &mut App) {
     let nav = &mut app.navigation;
 
     match input {
-        Key::Esc => nav.pop(),
+        Key::Esc => {
+            nav.pop();
+
+            if nav.parent() == BlockId::Root {
+                nav.push(BlockId::SubscriptionsWindow);
+                nav.push(BlockId::TabNav);
+            }
+        }
         c => match nav.peek() {
             BlockId::Root => {
                 nav.push(BlockId::SubscriptionsWindow);
@@ -178,7 +187,6 @@ pub fn start_tui(engine: Engine, format_options: MessageFormat) -> Result<(), fa
     let events = Events::new();
 
     let tx = events.tx();
-    let engine_tx = engine.tx();
 
     let notifications = engine.notifications.clone();
     let mut app = App::new(engine);
@@ -201,10 +209,10 @@ pub fn start_tui(engine: Engine, format_options: MessageFormat) -> Result<(), fa
             draw_tab_nav(&mut f, chunks[0], &app);
 
             match app.tabs.index {
-                0 => draw_subscriptions_tab(&mut f, chunks[1], &mut app),
-                1 => draw_stream_tab(&mut f, chunks[1], &mut app, format_options),
-                2 => draw_empty_tab(&mut f, chunks[1], &mut app, format_options),
-                3 => draw_empty_tab(&mut f, chunks[1], &mut app, format_options),
+                0 => draw_subscriptions_tab(&mut f, chunks[1], &app),
+                1 => draw_stream_tab(&mut f, chunks[1], &app, format_options),
+                2 => draw_empty_tab(&mut f, chunks[1], &app, format_options),
+                3 => draw_empty_tab(&mut f, chunks[1], &app, format_options),
                 _ => {}
             }
         })?;

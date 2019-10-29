@@ -8,7 +8,7 @@ use crate::format::FormattedString;
 use crate::format::MessageFormat;
 use crate::tui::App;
 
-pub fn draw_stream_tab<B>(f: &mut Frame<B>, area: Rect, app: &mut App, format: MessageFormat)
+pub fn draw_stream_tab<B>(f: &mut Frame<B>, area: Rect, app: &App, format: MessageFormat)
 where
     B: Backend,
 {
