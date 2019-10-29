@@ -47,7 +47,7 @@ impl Engine {
                             .map(|mut subscriptions| subscriptions.remove(sub.as_str()))
                             .unwrap();
 
-                        client.unsubscribe(sub).unwrap();
+                        // TODO client.unsubscribe(sub).unwrap();
                     }
                 },
                 Err(e) => panic!("{:?}", e),

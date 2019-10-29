@@ -2,14 +2,14 @@ use termion::event::Key;
 use tui::backend::Backend;
 use tui::layout::{Constraint, Direction, Layout, Rect};
 use tui::style::{Color, Style};
-use tui::widgets::{Block, Borders, List, Paragraph, Text, Widget};
+use tui::widgets::{Block, Borders, Paragraph, SelectableList, Text, Widget};
 use tui::Frame;
 
 use crate::engine;
 use crate::tui::style::get_color;
 use crate::tui::{App, BlockId};
 
-fn draw_subscribe_text_input<B>(f: &mut Frame<B>, area: Rect, app: &App)
+fn draw_subscribe_input<B>(f: &mut Frame<B>, area: Rect, app: &App)
 where
     B: Backend,
 {
@@ -30,6 +30,43 @@ where
         .render(f, area);
 }
 
+fn draw_subscriptions_list<B>(f: &mut Frame<B>, area: Rect, app: &App)
+where
+    B: Backend,
+{
+    let subscriptions: Vec<_> = app
+        .engine
+        .subscriptions
+        .read()
+        .map(|subscriptions| subscriptions.clone().into_iter().collect())
+        .unwrap();
+
+    let highlight_state = (
+        app.navigation.parent() == BlockId::SubscriptionsList,
+        app.navigation.peek() == BlockId::SubscriptionsList,
+    );
+
+    let selected_subscription_index =
+        if let BlockId::SubscriptionsListItem(i) = app.navigation.peek() {
+            i
+        } else {
+            0
+        };
+
+    SelectableList::default()
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Subscriptions")
+                .title_style(get_color(highlight_state))
+                .border_style(get_color(highlight_state)),
+        )
+        .items(subscriptions.as_slice())
+        .select(Some(selected_subscription_index))
+        .highlight_style(Style::default().fg(Color::LightCyan))
+        .render(f, area);
+}
+
 pub fn draw_subscriptions_tab<B>(f: &mut Frame<B>, area: Rect, app: &App)
 where
     B: Backend,
@@ -39,29 +76,8 @@ where
         .constraints([Constraint::Length(3), Constraint::Min(0)].as_ref())
         .split(area);
 
-    draw_subscribe_text_input(f, chunks[0], app);
-
-    let subscriptions = app
-        .engine
-        .subscriptions
-        .read()
-        .map(|subscriptions| subscriptions.clone().into_iter().map(Text::raw))
-        .unwrap();
-
-    let highlight_state = (
-        app.navigation.parent() == BlockId::SubscriptionsList,
-        app.navigation.peek() == BlockId::SubscriptionsList,
-    );
-
-    List::new(subscriptions)
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title("Subscriptions")
-                .title_style(get_color(highlight_state))
-                .border_style(get_color(highlight_state)),
-        )
-        .render(f, chunks[1]);
+    draw_subscribe_input(f, chunks[0], app);
+    draw_subscriptions_list(f, chunks[1], app);
 }
 
 pub fn handle_input_on_subscriptions_list(c: Key, app: &mut App) {
@@ -77,22 +93,24 @@ pub fn handle_input_on_subscriptions_list(c: Key, app: &mut App) {
 }
 
 pub fn handle_input_on_subscriptions_list_item(c: Key, app: &mut App, index: usize) {
+    let max = app.engine.subscriptions.read().unwrap().len() - 1;
+    let prev_index = index - (if index > 0 { 1 } else { 0 });
+    let next_index = index + (if index < max { 1 } else { 0 });
+
     match c {
         Key::Up => app
             .navigation
-            .modify_top(BlockId::SubscriptionsListItem(index - 1)),
+            .modify_top(BlockId::SubscriptionsListItem(prev_index)),
         Key::Down => app
             .navigation
-            .modify_top(BlockId::SubscriptionsListItem(index + 1)),
+            .modify_top(BlockId::SubscriptionsListItem(next_index)),
         Key::Char('d') | Key::Char('x') | Key::Backspace | Key::Delete => {
-            // TODO Delete select element (now delete the first)
             let sub = app
                 .engine
                 .subscriptions
                 .read()
                 .map(|x| x.iter().nth(index).cloned());
             if let Ok(Some(sub)) = sub {
-                // TODO MqttClient does not yet implement unsubscribe
                 app.engine
                     .tx()
                     .send(engine::Event::Unsubscribe(sub))
