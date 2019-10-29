@@ -125,7 +125,7 @@ pub fn handle_input_on_subscribe_input(c: Key, app: &mut App) {
     match c {
         Key::Up => {
             app.subscribe_input.clear();
-            app.navigation.modify_top(BlockId::Tabs);
+            app.navigation.modify_top(BlockId::TabNav);
         }
         Key::Down => {
             app.subscribe_input.clear();

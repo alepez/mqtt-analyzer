@@ -15,7 +15,6 @@ use tui::{Frame, Terminal};
 
 use utils::{Event, Events};
 
-use crate::engine;
 use crate::engine::Engine;
 use crate::format::MessageFormat;
 use crate::tui::stream::draw_stream_tab;
@@ -36,7 +35,7 @@ mod utils;
 pub enum BlockId {
     Root,
     SubscriptionsWindow,
-    Tabs,
+    TabNav,
     SubscribeInput,
     SubscriptionsList,
     SubscriptionsListItem(usize),
@@ -115,13 +114,13 @@ pub fn draw_empty_tab<B>(
     Block::default().borders(Borders::ALL).render(f, area)
 }
 
-fn draw_tab_block<B>(f: &mut Frame<B>, area: Rect, app: &App)
+fn draw_tab_nav<B>(f: &mut Frame<B>, area: Rect, app: &App)
 where
     B: Backend,
 {
     let highlight_state = (
-        app.navigation.peek() == BlockId::Tabs,
-        app.navigation.peek() == BlockId::Tabs,
+        app.navigation.peek() == BlockId::TabNav,
+        app.navigation.peek() == BlockId::TabNav,
     );
 
     let style = get_color(highlight_state);
@@ -154,9 +153,9 @@ fn handle_input(input: termion::event::Key, app: &mut App) {
         c => match nav.peek() {
             BlockId::Root => {
                 nav.push(BlockId::SubscriptionsWindow);
-                nav.push(BlockId::Tabs);
+                nav.push(BlockId::TabNav);
             }
-            BlockId::Tabs => handle_input_on_tabs(c, app),
+            BlockId::TabNav => handle_input_on_tabs(c, app),
             BlockId::SubscribeInput => handle_input_on_subscribe_input(c, app),
             BlockId::SubscriptionsList => handle_input_on_subscriptions_list(c, app),
             BlockId::SubscriptionsListItem(index) => {
@@ -199,7 +198,7 @@ pub fn start_tui(engine: Engine, format_options: MessageFormat) -> Result<(), fa
                 .constraints([Constraint::Length(3), Constraint::Min(0)].as_ref())
                 .split(size);
 
-            draw_tab_block(&mut f, chunks[0], &app);
+            draw_tab_nav(&mut f, chunks[0], &app);
 
             match app.tabs.index {
                 0 => draw_subscriptions_tab(&mut f, chunks[1], &mut app),
