@@ -17,13 +17,14 @@ use utils::{Event, Events};
 
 use crate::engine::Engine;
 use crate::format::MessageFormat;
-use crate::tui::stream::draw_stream_tab;
-use crate::tui::style::get_color;
-use crate::tui::subscriptions::draw_subscriptions_tab;
-use crate::tui::subscriptions::handle_input_on_subscribe_input;
-use crate::tui::subscriptions::handle_input_on_subscriptions_list;
-use crate::tui::subscriptions::handle_input_on_subscriptions_list_item;
-use crate::tui::tabs::TabsState;
+
+use self::stream::draw_stream_tab;
+use self::style::get_color;
+use self::subscriptions::{
+    draw_subscriptions_tab, handle_input_on_subscribe_input, handle_input_on_subscriptions_list,
+    handle_input_on_subscriptions_list_item,
+};
+use self::tabs::TabsState;
 
 mod stream;
 mod style;

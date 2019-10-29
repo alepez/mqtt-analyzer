@@ -27,8 +27,6 @@ pub enum Color {
     OnBackground,
     Primary,
     OnPrimary,
-    Secondary,
-    OnSecondary,
     Error,
     OnError,
 }
@@ -40,8 +38,6 @@ impl Into<colored::Color> for Color {
             Color::OnBackground => colored::Color::White,
             Color::Primary => colored::Color::Blue,
             Color::OnPrimary => colored::Color::Black,
-            Color::Secondary => colored::Color::BrightGreen,
-            Color::OnSecondary => colored::Color::Black,
             Color::Error => colored::Color::Red,
             Color::OnError => colored::Color::White,
         }
@@ -55,8 +51,6 @@ impl Into<tui::style::Color> for Color {
             Color::OnBackground => tui::style::Color::White,
             Color::Primary => tui::style::Color::Blue,
             Color::OnPrimary => tui::style::Color::Black,
-            Color::Secondary => tui::style::Color::LightGreen,
-            Color::OnSecondary => tui::style::Color::Black,
             Color::Error => tui::style::Color::Red,
             Color::OnError => tui::style::Color::White,
         }
