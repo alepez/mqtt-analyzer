@@ -1,3 +1,5 @@
+use std::string::ToString;
+
 use rumqtt::Notification;
 
 #[derive(Copy, Clone)]
@@ -21,12 +23,25 @@ impl MessageFormat {
     }
 }
 
+impl std::fmt::Display for PayloadFormat {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            PayloadFormat::Hex => write!(f, "HEX"),
+            PayloadFormat::Text => write!(f, "TXT"),
+            PayloadFormat::Base64 => write!(f, "B64"),
+            PayloadFormat::Escape => write!(f, "ESC"),
+        }
+    }
+}
+
 #[derive(Copy, Clone)]
 pub enum Color {
     Background,
     OnBackground,
     Primary,
     OnPrimary,
+    Secondary,
+    OnSecondary,
     Error,
     OnError,
 }
@@ -38,6 +53,8 @@ impl Into<colored::Color> for Color {
             Color::OnBackground => colored::Color::White,
             Color::Primary => colored::Color::Blue,
             Color::OnPrimary => colored::Color::Black,
+            Color::Secondary => colored::Color::Yellow,
+            Color::OnSecondary => colored::Color::Black,
             Color::Error => colored::Color::Red,
             Color::OnError => colored::Color::White,
         }
@@ -51,6 +68,8 @@ impl Into<tui::style::Color> for Color {
             Color::OnBackground => tui::style::Color::White,
             Color::Primary => tui::style::Color::Blue,
             Color::OnPrimary => tui::style::Color::Black,
+            Color::Secondary => tui::style::Color::Yellow,
+            Color::OnSecondary => tui::style::Color::Black,
             Color::Error => tui::style::Color::Red,
             Color::OnError => tui::style::Color::White,
         }
@@ -160,25 +179,41 @@ pub fn format_payload(format: PayloadFormat, payload: &[u8]) -> String {
     }
 }
 
+const TOPIC_STYLE: TokenStyle = TokenStyle {
+    color: Color::OnPrimary,
+    background: Color::Primary,
+};
+
+const PAYLOAD_STYLE: TokenStyle = TokenStyle {
+    color: Color::OnBackground,
+    background: Color::Background,
+};
+
+const FORMAT_STYLE: TokenStyle = TokenStyle {
+    color: Color::OnSecondary,
+    background: Color::Secondary,
+};
+
+const NOTIFICATION_STYLE: TokenStyle = TokenStyle {
+    color: Color::OnError,
+    background: Color::Error,
+};
+
 pub fn format_message(format: MessageFormat, msg: &rumqtt::Publish) -> FormattedString {
     let payload = format_payload(format.payload_format, msg.payload.as_ref());
 
     FormattedString(vec![
-        FormattedToken::new(
-            TokenStyle {
-                color: Color::OnPrimary,
-                background: Color::Primary,
-            },
-            msg.topic_name.clone(),
-        ),
-        FormattedToken::new(
-            TokenStyle {
-                color: Color::OnBackground,
-                background: Color::Background,
-            },
-            payload,
-        ),
+        FormattedToken::new(FORMAT_STYLE, format.payload_format.to_string()),
+        FormattedToken::new(TOPIC_STYLE, msg.topic_name.clone()),
+        FormattedToken::new(PAYLOAD_STYLE, payload),
     ])
+}
+
+fn format_generic_notification(notification: &Notification) -> FormattedString {
+    FormattedString(vec![FormattedToken::new(
+        NOTIFICATION_STYLE,
+        format!("{:?}", notification),
+    )])
 }
 
 pub fn format_notification(
@@ -187,13 +222,7 @@ pub fn format_notification(
 ) -> FormattedString {
     match notification {
         Notification::Publish(msg) => format_message(format, msg),
-        n => FormattedString(vec![FormattedToken::new(
-            TokenStyle {
-                color: Color::OnError,
-                background: Color::Error,
-            },
-            format!("{:?}", n),
-        )]),
+        notification => format_generic_notification(notification),
     }
 }
 

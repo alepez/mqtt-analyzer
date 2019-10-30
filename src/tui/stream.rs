@@ -18,7 +18,12 @@ where
         .map(|notification| format_notification(format, notification))
         .collect();
 
-    let formatted = formatted.iter().flat_map(|n| n.to_tui_color_string());
+    /* Reverse it because list is rendered bottom to top */
+    let formatted = formatted.iter().flat_map(|n| {
+        let mut v = n.to_tui_color_string();
+        v.reverse();
+        v
+    });
 
     List::new(formatted)
         .block(Block::default().borders(Borders::ALL))
