@@ -86,14 +86,23 @@ pub fn handle_input_on_subscriptions_list(c: Key, app: &mut App) {
             app.navigation.modify_top(BlockId::SubscribeInput);
         }
         Key::Char('\n') => {
-            app.navigation.push(BlockId::SubscriptionsListItem(0));
+            if app.engine.subscriptions.read().unwrap().len() > 0 {
+                app.navigation.push(BlockId::SubscriptionsListItem(0));
+            }
         }
         _ => {}
     }
 }
 
 pub fn handle_input_on_subscriptions_list_item(c: Key, app: &mut App, index: usize) {
-    let max = app.engine.subscriptions.read().unwrap().len() - 1;
+    let subscriptions_len = app.engine.subscriptions.read().unwrap().len();
+
+    if subscriptions_len == 0 {
+        app.navigation.pop();
+        return;
+    }
+
+    let max = subscriptions_len - 1;
     let prev_index = index - (if index > 0 { 1 } else { 0 });
     let next_index = index + (if index < max { 1 } else { 0 });
 
@@ -110,6 +119,7 @@ pub fn handle_input_on_subscriptions_list_item(c: Key, app: &mut App, index: usi
                 .subscriptions
                 .read()
                 .map(|x| x.iter().nth(index).cloned());
+
             if let Ok(Some(sub)) = sub {
                 app.engine
                     .tx()
