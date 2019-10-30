@@ -110,23 +110,23 @@ impl FormattedString {
             .collect::<Vec<String>>()
             .join(" ")
     }
-    pub fn to_tui_color_string(&self) -> Vec<tui::widgets::Text> {
-        self.0
-            .iter()
-            .map(|tok| {
-                use tui::style::{Color, Modifier, Style};
-                use tui::widgets::Text;
-                let fg: Color = tok.style.color.into();
-                let bg: Color = tok.style.background.into();
-                let style = Style {
-                    fg,
-                    bg,
-                    modifier: Modifier::empty(),
-                };
-                Text::styled(tok.content.clone(), style)
-            })
-            .collect()
-    }
+    //    pub fn to_tui_color_string(&self) -> Vec<tui::widgets::Text> {
+    //        self.0
+    //            .iter()
+    //            .map(|tok| {
+    //                use tui::style::{Color, Modifier, Style};
+    //                use tui::widgets::Text;
+    //                let fg: Color = tok.style.color.into();
+    //                let bg: Color = tok.style.background.into();
+    //                let style = Style {
+    //                    fg,
+    //                    bg,
+    //                    modifier: Modifier::empty(),
+    //                };
+    //                Text::styled(tok.content.clone(), style)
+    //            })
+    //            .collect()
+    //    }
 }
 
 impl ToString for FormattedString {
@@ -285,5 +285,26 @@ mod tests {
             format_payload(PayloadFormat::Escape, "ciao❤".as_bytes()),
             "ciao\\u{2764}"
         );
+    }
+}
+
+impl From<&FormattedString> for tui::widgets::Text<'_> {
+    fn from(fs: &FormattedString) -> Self {
+        // TODO concatenate all colors in same line
+        fs.0.iter()
+            .map(|tok| {
+                use tui::style::{Color, Modifier, Style};
+                use tui::widgets::Text;
+                let fg: Color = tok.style.color.into();
+                let bg: Color = tok.style.background.into();
+                let style = Style {
+                    fg,
+                    bg,
+                    modifier: Modifier::empty(),
+                };
+                Text::styled(tok.content.clone(), style)
+            })
+            .last()
+            .unwrap()
     }
 }

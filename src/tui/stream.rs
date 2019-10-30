@@ -19,11 +19,7 @@ where
         .collect();
 
     /* Reverse it because list is rendered bottom to top */
-    let formatted = formatted.iter().flat_map(|n| {
-        let mut v = n.to_tui_color_string();
-        v.reverse();
-        v
-    });
+    let formatted = formatted.iter().map(|n| n.into());
 
     List::new(formatted)
         .block(Block::default().borders(Borders::ALL))
