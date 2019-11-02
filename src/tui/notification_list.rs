@@ -5,7 +5,7 @@ use tui::layout::{Corner, Rect};
 use tui::style::Style;
 use tui::widgets::{Block, Widget};
 
-use crate::format::{format_payload, PayloadFormat};
+use crate::format::*;
 
 pub struct Notification<'b> {
     content: &'b rumqtt::client::Notification,
@@ -86,11 +86,17 @@ fn draw_publish_notification(
     let formatted_payload = format_payload(format, payload);
 
     let mut offset: u16 = 0;
-    buf.set_stringn(x + offset, y, &format_str, width, Style::default());
+    buf.set_stringn(x + offset, y, &format_str, width, FORMAT_STYLE.into());
     offset += (format_str.len() + 1) as u16;
-    buf.set_stringn(x + offset, y, topic, width, Style::default());
+    buf.set_stringn(x + offset, y, topic, width, TOPIC_STYLE.into());
     offset += (topic.len() + 1) as u16;
-    buf.set_stringn(x + offset, y, formatted_payload, width, Style::default());
+    buf.set_stringn(
+        x + offset,
+        y,
+        formatted_payload,
+        width,
+        PAYLOAD_STYLE.into(),
+    );
 }
 
 fn draw_notification(notification: &Notification, buf: &mut Buffer, x: u16, y: u16, width: usize) {

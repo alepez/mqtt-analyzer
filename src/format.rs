@@ -162,22 +162,22 @@ pub fn format_payload(format: PayloadFormat, payload: &[u8]) -> String {
     }
 }
 
-const TOPIC_STYLE: TokenStyle = TokenStyle {
+pub const TOPIC_STYLE: TokenStyle = TokenStyle {
     color: Color::OnPrimary,
     background: Color::Primary,
 };
 
-const PAYLOAD_STYLE: TokenStyle = TokenStyle {
+pub const PAYLOAD_STYLE: TokenStyle = TokenStyle {
     color: Color::OnBackground,
     background: Color::Background,
 };
 
-const FORMAT_STYLE: TokenStyle = TokenStyle {
+pub const FORMAT_STYLE: TokenStyle = TokenStyle {
     color: Color::OnSecondary,
     background: Color::Secondary,
 };
 
-const NOTIFICATION_STYLE: TokenStyle = TokenStyle {
+pub const NOTIFICATION_STYLE: TokenStyle = TokenStyle {
     color: Color::OnError,
     background: Color::Error,
 };
@@ -206,6 +206,14 @@ pub fn format_notification(
     match notification {
         Notification::Publish(msg) => format_message(format, msg),
         notification => format_generic_notification(notification),
+    }
+}
+
+impl Into<tui::style::Style> for TokenStyle {
+    fn into(self) -> tui::style::Style {
+        tui::style::Style::default()
+            .fg(self.color.into())
+            .bg(self.background.into())
     }
 }
 
