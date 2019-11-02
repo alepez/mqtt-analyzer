@@ -1,8 +1,8 @@
 use clap::{App, Arg};
 use rumqtt::{MqttOptions, SecurityOptions};
+use uuid::Uuid;
 
 use crate::format::{MessageFormat, PayloadFormat};
-use uuid::Uuid;
 
 fn generate_random_client_id() -> String {
     Uuid::new_v4().to_string()
@@ -87,7 +87,7 @@ pub fn parse_options() -> Options {
     let client_id = matches
         .value_of("client_id")
         .map(str::to_string)
-        .unwrap_or(generate_random_client_id());
+        .unwrap_or_else(generate_random_client_id);
 
     let subscriptions: Vec<String> = matches
         .values_of("topic")

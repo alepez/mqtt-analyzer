@@ -26,6 +26,7 @@ use self::subscriptions::{
 };
 use self::tabs::TabsState;
 
+mod notification_list;
 mod stream;
 mod style;
 mod subscriptions;
