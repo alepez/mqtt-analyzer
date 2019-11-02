@@ -5,6 +5,8 @@ use tui::layout::{Corner, Rect};
 use tui::style::Style;
 use tui::widgets::{Block, Widget};
 
+use crate::format::{format_payload, PayloadFormat};
+
 pub struct Notification<'b> {
     content: &'b rumqtt::client::Notification,
 }
@@ -60,6 +62,44 @@ where
     }
 }
 
+fn draw_generic_notification(
+    notification: &rumqtt::Notification,
+    buf: &mut Buffer,
+    x: u16,
+    y: u16,
+    width: usize,
+) {
+    buf.set_stringn(x, y, format!("{:?}", notification), width, Style::default());
+}
+
+fn draw_publish_notification(
+    msg: &mqtt311::Publish,
+    buf: &mut Buffer,
+    x: u16,
+    y: u16,
+    width: usize,
+) {
+    let format = PayloadFormat::Hex;
+    let format_str = format.to_string();
+    let topic = msg.topic_name.as_str();
+    let payload = msg.payload.as_slice();
+    let formatted_payload = format_payload(format, payload);
+
+    let mut offset: u16 = 0;
+    buf.set_stringn(x + offset, y, &format_str, width, Style::default());
+    offset += (format_str.len() + 1) as u16;
+    buf.set_stringn(x + offset, y, topic, width, Style::default());
+    offset += (topic.len() + 1) as u16;
+    buf.set_stringn(x + offset, y, formatted_payload, width, Style::default());
+}
+
+fn draw_notification(notification: &Notification, buf: &mut Buffer, x: u16, y: u16, width: usize) {
+    match notification.content {
+        rumqtt::Notification::Publish(a) => draw_publish_notification(a, buf, x, y, width),
+        a => draw_generic_notification(a, buf, x, y, width),
+    }
+}
+
 impl<'b, L> Widget for NotificationsList<'b, L>
 where
     L: Iterator<Item = Notification<'b>>,
@@ -89,13 +129,7 @@ where
                 // Not supported
                 _ => (list_area.left(), list_area.top() + i as u16),
             };
-            buf.set_stringn(
-                x,
-                y,
-                format!("{:?}", item.content),
-                list_area.width as usize,
-                Style::default(),
-            );
+            draw_notification(&item, buf, x, y, list_area.width as usize);
         }
     }
 }

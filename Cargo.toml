@@ -19,5 +19,6 @@ termion = "1.5"
 failure = "0.1"
 circular-queue = "0.2.2"
 unicode-width = "^0.1"
+mqtt311 = "^0.2"
 uuid = { version = "0.7", features = ["v4"] }
 

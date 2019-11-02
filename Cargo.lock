@@ -392,6 +392,7 @@ dependencies = [
  "colored 1.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "failure 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "hex 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mqtt311 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rumqtt 0.31.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "termion 1.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "tui 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
