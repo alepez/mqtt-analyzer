@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::io::{self};
 use std::thread;
 
@@ -18,6 +19,7 @@ use utils::{Event, Events};
 use crate::engine::Engine;
 use crate::format::MessageFormat;
 
+use self::retain::draw_retain_tab;
 use self::stream::draw_stream_tab;
 use self::style::get_color;
 use self::subscriptions::{
@@ -27,6 +29,7 @@ use self::subscriptions::{
 use self::tabs::TabsState;
 
 mod notification_list;
+mod retain;
 mod stream;
 mod style;
 mod subscriptions;
@@ -82,11 +85,14 @@ impl Navigation {
     }
 }
 
+type RetainedMessages = HashMap<String, Notification>;
+
 pub struct App {
     engine: Engine,
     tabs: TabsState,
     subscribe_input: String,
     notifications: CircularQueue<Notification>,
+    retained_messages: RetainedMessages,
     navigation: Navigation,
 }
 
@@ -102,6 +108,7 @@ impl App {
             tabs: TabsState::new(tabs),
             subscribe_input: String::new(),
             notifications: CircularQueue::with_capacity(100),
+            retained_messages: RetainedMessages::default(),
             navigation: Navigation::default(),
         }
     }
@@ -213,7 +220,7 @@ pub fn start_tui(engine: Engine, format_options: MessageFormat) -> Result<(), fa
             match app.tabs.index {
                 0 => draw_subscriptions_tab(&mut f, chunks[1], &app),
                 1 => draw_stream_tab(&mut f, chunks[1], &app, format_options),
-                2 => draw_empty_tab(&mut f, chunks[1], &app, format_options),
+                2 => draw_retain_tab(&mut f, chunks[1], &app, format_options),
                 3 => draw_empty_tab(&mut f, chunks[1], &app, format_options),
                 _ => {}
             }
@@ -225,7 +232,14 @@ pub fn start_tui(engine: Engine, format_options: MessageFormat) -> Result<(), fa
             }
             Event::Input(input) => handle_input(input, &mut app),
             Event::MqttNotification(notification) => {
-                app.notifications.push(notification);
+                if let Notification::Publish(msg) = notification {
+                    let msg = msg.clone();
+                    app.retained_messages
+                        .insert(msg.topic_name.clone(), Notification::Publish(msg.clone()));
+                    app.notifications.push(Notification::Publish(msg));
+                } else {
+                    app.notifications.push(notification);
+                }
             }
             _ => {}
         }
