@@ -24,6 +24,7 @@ where
     block: Option<Block<'b>>,
     items: L,
     start_corner: Corner,
+    format: PayloadFormat,
 }
 
 impl<'b, L> Default for NotificationsList<'b, L>
@@ -35,6 +36,7 @@ where
             block: None,
             items: L::default(),
             start_corner: Corner::TopLeft,
+            format: PayloadFormat::Hex,
         }
     }
 }
@@ -48,7 +50,13 @@ where
             block: None,
             items,
             start_corner: Corner::TopLeft,
+            format: PayloadFormat::Hex,
         }
+    }
+
+    pub fn format(mut self, format: PayloadFormat) -> NotificationsList<'b, L> {
+        self.format = format;
+        self
     }
 
     pub fn block(mut self, block: Block<'b>) -> NotificationsList<'b, L> {
@@ -78,8 +86,8 @@ fn draw_publish_notification(
     x: u16,
     y: u16,
     width: usize,
+    format: PayloadFormat,
 ) {
-    let format = PayloadFormat::Hex;
     let format_str = format.to_string();
     let topic = msg.topic_name.as_str();
     let payload = msg.payload.as_slice();
@@ -99,9 +107,16 @@ fn draw_publish_notification(
     );
 }
 
-fn draw_notification(notification: &Notification, buf: &mut Buffer, x: u16, y: u16, width: usize) {
+fn draw_notification(
+    notification: &Notification,
+    buf: &mut Buffer,
+    x: u16,
+    y: u16,
+    width: usize,
+    format: PayloadFormat,
+) {
     match notification.content {
-        rumqtt::Notification::Publish(a) => draw_publish_notification(a, buf, x, y, width),
+        rumqtt::Notification::Publish(a) => draw_publish_notification(a, buf, x, y, width, format),
         a => draw_generic_notification(a, buf, x, y, width),
     }
 }
@@ -135,7 +150,7 @@ where
                 // Not supported
                 _ => (list_area.left(), list_area.top() + i as u16),
             };
-            draw_notification(&item, buf, x, y, list_area.width as usize);
+            draw_notification(&item, buf, x, y, list_area.width as usize, self.format);
         }
     }
 }
