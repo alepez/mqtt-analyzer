@@ -5,6 +5,7 @@ use rumqtt::Notification;
 
 #[derive(Copy, Clone)]
 pub enum PayloadFormat {
+    Auto,
     Text,
     Hex,
     Base64,
@@ -15,11 +16,12 @@ impl FromStr for PayloadFormat {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
+        match s.to_lowercase().as_str() {
             "hex" => Ok(PayloadFormat::Hex),
-            "text" => Ok(PayloadFormat::Text),
-            "base64" => Ok(PayloadFormat::Base64),
-            "escape" => Ok(PayloadFormat::Escape),
+            "text" | "txt" => Ok(PayloadFormat::Text),
+            "base64" | "b64" => Ok(PayloadFormat::Base64),
+            "escape" | "esc" => Ok(PayloadFormat::Escape),
+            "auto" => Ok(PayloadFormat::Auto),
             _ => Err(()),
         }
     }
@@ -45,6 +47,7 @@ impl std::fmt::Display for PayloadFormat {
             PayloadFormat::Text => write!(f, "TXT"),
             PayloadFormat::Base64 => write!(f, "B64"),
             PayloadFormat::Escape => write!(f, "ESC"),
+            PayloadFormat::Auto => panic!("Auto"),
         }
     }
 }
@@ -144,16 +147,16 @@ pub fn format_payload_hex(payload: &[u8]) -> String {
 fn escape_only_non_printable(text: String) -> String {
     text.chars()
         .map(|c| match c {
-            '!'..='~' => c.to_string(),
+            ' '..='~' => c.to_string(),
             _ => c.escape_debug().to_string(),
         })
         .collect()
 }
 
-pub fn format_payload_text(payload: &[u8]) -> String {
+pub fn format_payload_text(payload: &[u8]) -> (PayloadFormat, String) {
     match String::from_utf8(payload.to_vec()) {
-        Result::Ok(text) => escape_only_non_printable(text),
-        _ => format_payload_hex(payload),
+        Result::Ok(text) => (PayloadFormat::Text, escape_only_non_printable(text)),
+        _ => (PayloadFormat::Hex, format_payload_hex(payload)),
     }
 }
 
@@ -161,19 +164,38 @@ pub fn format_payload_base64(payload: &[u8]) -> String {
     base64::encode(payload)
 }
 
-pub fn format_payload_ascii(payload: &[u8]) -> String {
+pub fn format_payload_ascii(payload: &[u8]) -> (PayloadFormat, String) {
     match String::from_utf8(payload.to_vec()) {
-        Result::Ok(text) => text.escape_default().to_string(),
-        _ => format_payload_hex(payload),
+        Result::Ok(text) => (PayloadFormat::Escape, text.escape_default().to_string()),
+        _ => (PayloadFormat::Hex, format_payload_hex(payload)),
     }
 }
 
-pub fn format_payload(format: PayloadFormat, payload: &[u8]) -> String {
+fn is_printable(payload: &[u8]) -> bool {
+    payload.iter().all(|c| match c {
+        b' '..=b'~' => true,
+        _ => false,
+    })
+}
+
+fn guess_format(payload: &[u8]) -> PayloadFormat {
+    if is_printable(payload) {
+        return PayloadFormat::Text;
+    }
+
+    PayloadFormat::Escape
+}
+
+pub fn format_payload(format: PayloadFormat, payload: &[u8]) -> (PayloadFormat, String) {
     match format {
-        PayloadFormat::Hex => format_payload_hex(payload),
+        PayloadFormat::Hex => (format, format_payload_hex(payload)),
         PayloadFormat::Text => format_payload_text(payload),
-        PayloadFormat::Base64 => format_payload_base64(payload),
+        PayloadFormat::Base64 => (format, format_payload_base64(payload)),
         PayloadFormat::Escape => format_payload_ascii(payload),
+        PayloadFormat::Auto => {
+            let actual_format = guess_format(payload);
+            format_payload(actual_format, payload)
+        }
     }
 }
 
@@ -198,10 +220,10 @@ pub const NOTIFICATION_STYLE: TokenStyle = TokenStyle {
 };
 
 pub fn format_message(format: MessageFormat, msg: &rumqtt::Publish) -> FormattedString {
-    let payload = format_payload(format.payload_format, msg.payload.as_ref());
+    let (format, payload) = format_payload(format.payload_format, msg.payload.as_ref());
 
     FormattedString(vec![
-        FormattedToken::new(FORMAT_STYLE, format.payload_format.to_string()),
+        FormattedToken::new(FORMAT_STYLE, format.to_string()),
         FormattedToken::new(TOPIC_STYLE, msg.topic_name.clone()),
         FormattedToken::new(PAYLOAD_STYLE, payload),
     ])
@@ -238,20 +260,20 @@ mod tests {
 
     #[test]
     fn format_payload_hex_non_empty() {
-        assert_eq!(format_payload(PayloadFormat::Hex, b"ciao"), "6369616f");
+        assert_eq!(format_payload(PayloadFormat::Hex, b"ciao").1, "6369616f");
     }
 
     #[test]
     fn format_payload_text_non_empty() {
-        assert_eq!(format_payload(PayloadFormat::Text, b"ciao"), "ciao");
+        assert_eq!(format_payload(PayloadFormat::Text, b"ciao").1, "ciao");
     }
 
     #[test]
     fn format_payload_text_with_special_chars_non_empty() {
-        assert_eq!(format_payload(PayloadFormat::Text, b"{ciao?"), "{ciao?");
+        assert_eq!(format_payload(PayloadFormat::Text, b"{ciao?").1, "{ciao?");
         println!(
             "{} == {}",
-            format_payload(PayloadFormat::Text, b"{ciao?"),
+            format_payload(PayloadFormat::Text, b"{ciao?").1,
             "{ciao?"
         );
     }
@@ -259,7 +281,7 @@ mod tests {
     #[test]
     fn format_payload_text_with_unicode_non_empty() {
         assert_eq!(
-            format_payload(PayloadFormat::Text, "ciao❤".as_bytes()),
+            format_payload(PayloadFormat::Text, "ciao❤".as_bytes()).1,
             "ciao❤"
         );
     }
@@ -267,7 +289,7 @@ mod tests {
     #[test]
     fn format_payload_text_non_utf8() {
         assert_eq!(
-            format_payload(PayloadFormat::Text, b"\xf1\xf2\xf4\xf7"),
+            format_payload(PayloadFormat::Text, b"\xf1\xf2\xf4\xf7").1,
             "f1f2f4f7"
         );
     }
@@ -275,20 +297,20 @@ mod tests {
     #[test]
     fn format_payload_text_non_printable() {
         assert_eq!(
-            format_payload(PayloadFormat::Text, b"\tc\ni\0a\ro"),
+            format_payload(PayloadFormat::Text, b"\tc\ni\0a\ro").1,
             "\\tc\\ni\\u{0}a\\ro"
         );
     }
 
     #[test]
     fn format_payload_base64_non_empty() {
-        assert_eq!(format_payload(PayloadFormat::Base64, b"ciao"), "Y2lhbw==");
+        assert_eq!(format_payload(PayloadFormat::Base64, b"ciao").1, "Y2lhbw==");
     }
 
     #[test]
     fn format_payload_ascii_non_empty() {
         assert_eq!(
-            format_payload(PayloadFormat::Escape, "ciao❤".as_bytes()),
+            format_payload(PayloadFormat::Escape, "ciao❤".as_bytes()).1,
             "ciao\\u{2764}"
         );
     }

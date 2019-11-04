@@ -94,7 +94,8 @@ pub fn parse_options() -> Options {
             .value_name("FORMAT")
             .help("The format to use to show payload. If text is non valid utf8, it falls back to hex.")
             .takes_value(true)
-            .possible_values(&["hex", "base64", "text", "escape"])
+            .possible_values(&["hex", "base64", "text", "escape", "auto"])
+            .default_value("auto")
         )
         .arg(Arg::with_name("tui")
             .long("tui")
@@ -105,6 +106,7 @@ pub fn parse_options() -> Options {
             .help("Enable Text User Interface")
             .takes_value(true)
             .possible_values(&["subs", "stream", "retained", "stats"])
+            .default_value("subs")
         )
         .get_matches();
 

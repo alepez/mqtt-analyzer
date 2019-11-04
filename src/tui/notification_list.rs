@@ -88,10 +88,10 @@ fn draw_publish_notification(
     width: usize,
     format: PayloadFormat,
 ) {
+    let payload = msg.payload.as_slice();
+    let (format, formatted_payload) = format_payload(format, payload);
     let format_str = format.to_string();
     let topic = msg.topic_name.as_str();
-    let payload = msg.payload.as_slice();
-    let formatted_payload = format_payload(format, payload);
 
     let mut offset: u16 = 0;
     buf.set_stringn(x + offset, y, &format_str, width, FORMAT_STYLE.into());
