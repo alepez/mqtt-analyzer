@@ -27,6 +27,7 @@ use self::subscriptions::{
     handle_input_on_subscriptions_list_item,
 };
 use self::tabs::TabsState;
+use crate::cli::Mode;
 
 mod notification_list;
 mod retain;
@@ -184,7 +185,11 @@ fn handle_input(input: termion::event::Key, app: &mut App) {
     }
 }
 
-pub fn start_tui(engine: Engine, format_options: MessageFormat) -> Result<(), failure::Error> {
+pub fn start_tui(
+    engine: Engine,
+    format_options: MessageFormat,
+    mode: Mode,
+) -> Result<(), failure::Error> {
     let stdout = io::stdout().into_raw_mode()?;
     let stdout = MouseTerminal::from(stdout);
     let stdout = AlternateScreen::from(stdout);
@@ -199,6 +204,8 @@ pub fn start_tui(engine: Engine, format_options: MessageFormat) -> Result<(), fa
 
     let notifications = engine.notifications.clone();
     let mut app = App::new(engine);
+
+    app.tabs.index = mode as usize;
 
     thread::spawn(move || {
         for notification in notifications {

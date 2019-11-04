@@ -31,6 +31,7 @@ fn main() -> Result<(), failure::Error> {
         mqtt: mqtt_options,
         subscriptions,
         tui,
+        mode,
     } = parse_options();
 
     let (client, notifications) = MqttClient::start(mqtt_options).unwrap();
@@ -40,7 +41,7 @@ fn main() -> Result<(), failure::Error> {
     engine.subscribe_all(subscriptions);
 
     if tui {
-        start_tui(engine, format_options)
+        start_tui(engine, format_options, mode)
     } else {
         start_stream(engine, format_options)
     }

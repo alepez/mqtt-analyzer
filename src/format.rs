@@ -1,3 +1,4 @@
+use std::str::FromStr;
 use std::string::ToString;
 
 use rumqtt::Notification;
@@ -8,6 +9,20 @@ pub enum PayloadFormat {
     Hex,
     Base64,
     Escape,
+}
+
+impl FromStr for PayloadFormat {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "hex" => Ok(PayloadFormat::Hex),
+            "text" => Ok(PayloadFormat::Text),
+            "base64" => Ok(PayloadFormat::Base64),
+            "escape" => Ok(PayloadFormat::Escape),
+            _ => Err(()),
+        }
+    }
 }
 
 #[derive(Copy, Clone)]

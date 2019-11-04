@@ -19,6 +19,6 @@ where
 
     NotificationsList::new(retained_messages)
         .block(Block::default().borders(Borders::ALL))
-        .start_corner(Corner::BottomLeft)
+        .start_corner(Corner::TopLeft)
         .render(f, area);
 }

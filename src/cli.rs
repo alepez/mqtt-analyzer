@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use clap::{App, Arg};
 use rumqtt::{MqttOptions, SecurityOptions};
 use uuid::Uuid;
@@ -8,11 +10,33 @@ fn generate_random_client_id() -> String {
     Uuid::new_v4().to_string()
 }
 
+pub enum Mode {
+    Subscriptions,
+    Stream,
+    Retained,
+    Statistics,
+}
+
+impl FromStr for Mode {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "subs" => Ok(Mode::Subscriptions),
+            "stream" => Ok(Mode::Stream),
+            "retained" => Ok(Mode::Retained),
+            "statistics" => Ok(Mode::Statistics),
+            _ => Err(()),
+        }
+    }
+}
+
 pub struct Options {
     pub mqtt: MqttOptions,
     pub subscriptions: Vec<String>,
     pub format: MessageFormat,
     pub tui: bool,
+    pub mode: Mode,
 }
 
 pub fn parse_options() -> Options {
@@ -76,6 +100,12 @@ pub fn parse_options() -> Options {
             .long("tui")
             .help("Enable Text User Interface")
         )
+        .arg(Arg::with_name("mode")
+            .long("mode")
+            .help("Enable Text User Interface")
+            .takes_value(true)
+            .possible_values(&["subs", "stream", "retained", "stats"])
+        )
         .get_matches();
 
     let hostname = matches.value_of("hostname").unwrap();
@@ -99,13 +129,15 @@ pub fn parse_options() -> Options {
         SecurityOptions::None
     };
 
-    let payload_format = match matches.value_of("format") {
-        Some("hex") => PayloadFormat::Hex,
-        Some("text") => PayloadFormat::Text,
-        Some("base64") => PayloadFormat::Base64,
-        Some("escape") => PayloadFormat::Escape,
-        _ => PayloadFormat::Hex,
-    };
+    let payload_format = matches
+        .value_of("format")
+        .and_then(|s| s.parse::<PayloadFormat>().ok())
+        .unwrap_or(PayloadFormat::Hex);
+
+    let mode = matches
+        .value_of("mode")
+        .and_then(|s| s.parse::<Mode>().ok())
+        .unwrap_or(Mode::Subscriptions);
 
     let tui = matches.is_present("tui");
 
@@ -117,5 +149,6 @@ pub fn parse_options() -> Options {
         subscriptions,
         format: message_format,
         tui,
+        mode,
     }
 }
