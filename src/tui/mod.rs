@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::io::{self};
 use std::thread;
 
@@ -86,7 +86,7 @@ impl Navigation {
     }
 }
 
-type RetainedMessages = HashMap<String, Notification>;
+type RetainedMessages = BTreeMap<String, Notification>;
 
 pub struct App {
     engine: Engine,
