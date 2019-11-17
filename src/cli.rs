@@ -14,7 +14,6 @@ pub enum Mode {
     Subscriptions,
     Stream,
     Retained,
-    Statistics,
 }
 
 impl FromStr for Mode {
@@ -25,7 +24,6 @@ impl FromStr for Mode {
             "subs" => Ok(Mode::Subscriptions),
             "stream" => Ok(Mode::Stream),
             "retained" => Ok(Mode::Retained),
-            "statistics" => Ok(Mode::Statistics),
             _ => Err(()),
         }
     }
