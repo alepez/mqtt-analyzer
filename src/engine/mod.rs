@@ -1,20 +1,17 @@
-use std::collections::BTreeSet;
-use std::sync::mpsc::Sender;
+use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{Arc, RwLock};
 use std::thread;
-
-use rumqtt::{MqttClient, Notification};
 
 pub enum Event {
     Subscribe(String),
     Unsubscribe(String),
 }
 
-type Subscriptions = BTreeSet<String>;
+type Subscriptions = std::collections::BTreeSet<String>;
 type SharedSubscriptions = Arc<RwLock<Subscriptions>>;
 
 pub struct Engine {
-    pub notifications: rumqtt::Receiver<Notification>,
+    pub notifications: rumqtt::Receiver<rumqtt::Notification>,
     pub subscriptions: SharedSubscriptions,
     tx: Sender<Event>,
     #[allow(dead_code)]
@@ -22,13 +19,12 @@ pub struct Engine {
 }
 
 impl Engine {
-    pub fn new(notifications: rumqtt::Receiver<Notification>, mut client: MqttClient) -> Engine {
-        let (tx, rx) = std::sync::mpsc::channel();
-
-        let subscriptions = SharedSubscriptions::new(RwLock::new(Subscriptions::new()));
-        let subscriptions2 = subscriptions.clone();
-
-        let thread = thread::spawn(move || loop {
+    fn listen_events(
+        rx: Receiver<Event>,
+        mut client: rumqtt::MqttClient,
+        subscriptions: SharedSubscriptions,
+    ) {
+        loop {
             match rx.recv() {
                 Ok(event) => match event {
                     Event::Subscribe(sub) => {
@@ -51,11 +47,20 @@ impl Engine {
                     }
                 },
                 Err(e) => panic!("{:?}", e),
-            };
-        });
+            }
+        }
+    }
+    pub fn new(
+        notifications: rumqtt::Receiver<rumqtt::Notification>,
+        client: rumqtt::MqttClient,
+    ) -> Engine {
+        let (tx, rx) = std::sync::mpsc::channel();
+        let subscriptions = SharedSubscriptions::new(RwLock::new(Subscriptions::new()));
+        let subscriptions2 = subscriptions.clone();
+        let thread = thread::spawn(move || Self::listen_events(rx, client, subscriptions2));
 
         Engine {
-            subscriptions: subscriptions2,
+            subscriptions,
             notifications,
             tx,
             thread,
