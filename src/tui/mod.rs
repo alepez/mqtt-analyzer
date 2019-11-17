@@ -8,11 +8,11 @@ use termion::event::Key;
 use termion::input::MouseTerminal;
 use termion::raw::IntoRawMode;
 use termion::screen::AlternateScreen;
-use tui::{Frame, Terminal};
 use tui::backend::{Backend, TermionBackend};
 use tui::layout::{Constraint, Direction, Layout, Rect};
 use tui::style::{Color, Style};
 use tui::widgets::{Block, Borders, Tabs, Widget};
+use tui::{Frame, Terminal};
 
 use navigation::{BlockId, Navigation};
 use retain::draw_retain_tab;
@@ -51,14 +51,9 @@ pub struct App {
 
 impl App {
     fn new(engine: Engine) -> App {
-        let tabs = vec!["Subscriptions", "Stream", "Retain"]
-            .iter()
-            .map(|&s| String::from(s))
-            .collect();
-
         App {
             engine,
-            tabs: TabsState::new(tabs),
+            tabs: TabsState::default(),
             subscribe_input: String::new(),
             notifications: CircularQueue::with_capacity(100),
             retained_messages: RetainedMessages::default(),
@@ -68,8 +63,8 @@ impl App {
 }
 
 fn draw_tab_nav<B>(f: &mut Frame<B>, area: Rect, app: &App)
-    where
-        B: Backend,
+where
+    B: Backend,
 {
     use BlockId::*;
 
@@ -82,7 +77,7 @@ fn draw_tab_nav<B>(f: &mut Frame<B>, area: Rect, app: &App)
 
     Tabs::default()
         .block(Block::default().borders(Borders::ALL).border_style(style))
-        .titles(&app.tabs.titles)
+        .titles(TabsState::TITLES)
         .select(app.tabs.index)
         .style(style)
         .highlight_style(Style::default().fg(Color::Yellow))
