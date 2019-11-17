@@ -3,8 +3,9 @@ extern crate clap;
 extern crate colored;
 extern crate hex;
 
-use rumqtt::MqttClient;
 use std::io::{self, Write};
+
+use rumqtt::MqttClient;
 
 use crate::cli::parse_options;
 use crate::engine::Engine;

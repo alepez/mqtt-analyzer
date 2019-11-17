@@ -147,7 +147,6 @@ where
             let (x, y) = match self.start_corner {
                 Corner::TopLeft => (list_area.left(), list_area.top() + i as u16),
                 Corner::BottomLeft => (list_area.left(), list_area.bottom() - (i + 1) as u16),
-                // Not supported
                 _ => (list_area.left(), list_area.top() + i as u16),
             };
             draw_notification(&item, buf, x, y, list_area.width as usize, self.format);

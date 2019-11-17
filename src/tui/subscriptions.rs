@@ -82,11 +82,13 @@ where
 }
 
 pub fn handle_input_on_subscriptions_list(c: Key, app: &mut App) {
+    use Key::*;
+
     match c {
-        Key::Up => {
+        Up => {
             app.navigation.modify_top(BlockId::SubscribeInput);
         }
-        Key::Char('\n') => {
+        Char('\n') => {
             if app.engine.subscriptions.read().unwrap().len() > 0 {
                 app.navigation.push(BlockId::SubscriptionsListItem(0));
             }
@@ -96,6 +98,8 @@ pub fn handle_input_on_subscriptions_list(c: Key, app: &mut App) {
 }
 
 pub fn handle_input_on_subscriptions_list_item(c: Key, app: &mut App, index: usize) {
+    use Key::*;
+
     let subscriptions_len = app.engine.subscriptions.read().unwrap().len();
 
     if subscriptions_len == 0 {
@@ -108,13 +112,13 @@ pub fn handle_input_on_subscriptions_list_item(c: Key, app: &mut App, index: usi
     let next_index = index + (if index < max { 1 } else { 0 });
 
     match c {
-        Key::Up => app
+        Up => app
             .navigation
             .modify_top(BlockId::SubscriptionsListItem(prev_index)),
-        Key::Down => app
+        Down => app
             .navigation
             .modify_top(BlockId::SubscriptionsListItem(next_index)),
-        Key::Char('d') | Key::Char('x') | Key::Backspace | Key::Delete => {
+        Char('d') | Char('x') | Backspace | Delete => {
             let sub = app
                 .engine
                 .subscriptions
@@ -133,16 +137,18 @@ pub fn handle_input_on_subscriptions_list_item(c: Key, app: &mut App, index: usi
 }
 
 pub fn handle_input_on_subscribe_input(c: Key, app: &mut App) {
+    use Key::*;
+
     match c {
-        Key::Up => {
+        Up => {
             app.subscribe_input.clear();
             app.navigation.modify_top(BlockId::TabNav);
         }
-        Key::Down => {
+        Down => {
             app.subscribe_input.clear();
             app.navigation.modify_top(BlockId::SubscriptionsList);
         }
-        Key::Char('\n') => {
+        Char('\n') => {
             let sub: String = app.subscribe_input.drain(..).collect();
             if !sub.is_empty() {
                 app.engine
@@ -151,10 +157,10 @@ pub fn handle_input_on_subscribe_input(c: Key, app: &mut App) {
                     .unwrap();
             }
         }
-        Key::Backspace => {
+        Backspace => {
             app.subscribe_input.pop();
         }
-        Key::Char(c) => {
+        Char(c) => {
             app.subscribe_input.push(c);
         }
         _ => {}

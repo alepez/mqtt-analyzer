@@ -8,26 +8,26 @@ use termion::event::Key;
 use termion::input::MouseTerminal;
 use termion::raw::IntoRawMode;
 use termion::screen::AlternateScreen;
+use tui::{Frame, Terminal};
 use tui::backend::{Backend, TermionBackend};
 use tui::layout::{Constraint, Direction, Layout, Rect};
 use tui::style::{Color, Style};
 use tui::widgets::{Block, Borders, Tabs, Widget};
-use tui::{Frame, Terminal};
-use utils::{Event, Events};
 
-use crate::cli::Mode;
-use crate::engine::Engine;
-use crate::format::MessageFormat;
-
-use self::navigation::{BlockId, Navigation};
-use self::retain::draw_retain_tab;
-use self::stream::draw_stream_tab;
-use self::style::get_color;
-use self::subscriptions::{
+use navigation::{BlockId, Navigation};
+use retain::draw_retain_tab;
+use stream::draw_stream_tab;
+use style::get_color;
+use subscriptions::{
     draw_subscriptions_tab, handle_input_on_subscribe_input, handle_input_on_subscriptions_list,
     handle_input_on_subscriptions_list_item,
 };
-use self::tabs::TabsState;
+use tabs::TabsState;
+use utils::{Event, Events};
+
+use super::cli::Mode;
+use super::engine::Engine;
+use super::format::MessageFormat;
 
 mod navigation;
 mod notification_list;
@@ -68,12 +68,14 @@ impl App {
 }
 
 fn draw_tab_nav<B>(f: &mut Frame<B>, area: Rect, app: &App)
-where
-    B: Backend,
+    where
+        B: Backend,
 {
+    use BlockId::*;
+
     let highlight_state = (
-        app.navigation.peek() == BlockId::TabNav,
-        app.navigation.peek() == BlockId::TabNav,
+        app.navigation.peek() == TabNav,
+        app.navigation.peek() == TabNav,
     );
 
     let style = get_color(highlight_state);
@@ -88,39 +90,43 @@ where
 }
 
 fn handle_input_on_tabs(c: termion::event::Key, app: &mut App) {
+    use BlockId::*;
+    use Key::*;
+
     match c {
-        Key::Right => app.tabs.next(),
-        Key::Left => app.tabs.previous(),
-        Key::Down | Key::Char('j') => {
-            app.navigation.modify_top(BlockId::SubscribeInput);
+        Right => app.tabs.next(),
+        Left => app.tabs.previous(),
+        Down | Key::Char('j') => {
+            app.navigation.modify_top(SubscribeInput);
         }
         _ => (),
     }
 }
 
 fn handle_input(input: termion::event::Key, app: &mut App) {
+    use BlockId::*;
+    use Key::*;
+
     let nav = &mut app.navigation;
 
     match input {
-        Key::Esc => {
+        Esc => {
             nav.pop();
 
-            if nav.parent() == BlockId::Root {
-                nav.push(BlockId::SubscriptionsWindow);
-                nav.push(BlockId::TabNav);
+            if nav.parent() == Root {
+                nav.push(SubscriptionsWindow);
+                nav.push(TabNav);
             }
         }
         c => match nav.peek() {
-            BlockId::Root => {
-                nav.push(BlockId::SubscriptionsWindow);
-                nav.push(BlockId::TabNav);
+            Root => {
+                nav.push(SubscriptionsWindow);
+                nav.push(TabNav);
             }
-            BlockId::TabNav => handle_input_on_tabs(c, app),
-            BlockId::SubscribeInput => handle_input_on_subscribe_input(c, app),
-            BlockId::SubscriptionsList => handle_input_on_subscriptions_list(c, app),
-            BlockId::SubscriptionsListItem(index) => {
-                handle_input_on_subscriptions_list_item(c, app, index)
-            }
+            TabNav => handle_input_on_tabs(c, app),
+            SubscribeInput => handle_input_on_subscribe_input(c, app),
+            SubscriptionsList => handle_input_on_subscriptions_list(c, app),
+            SubscriptionsListItem(index) => handle_input_on_subscriptions_list_item(c, app, index),
             _ => (),
         },
     }
@@ -131,6 +137,9 @@ pub fn start_tui(
     format_options: MessageFormat,
     mode: Mode,
 ) -> Result<(), failure::Error> {
+    use Event::*;
+    use Key::*;
+
     let stdout = io::stdout().into_raw_mode()?;
     let stdout = MouseTerminal::from(stdout);
     let stdout = AlternateScreen::from(stdout);
@@ -174,11 +183,11 @@ pub fn start_tui(
         })?;
 
         match events.next()? {
-            Event::Input(Key::Ctrl('c')) => {
+            Input(Ctrl('c')) => {
                 break;
             }
-            Event::Input(input) => handle_input(input, &mut app),
-            Event::MqttNotification(notification) => {
+            Input(input) => handle_input(input, &mut app),
+            MqttNotification(notification) => {
                 if let Notification::Publish(msg) = notification {
                     let msg = msg.clone();
                     app.retained_messages
