@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::io::{self};
 use std::thread;
 
@@ -99,7 +99,7 @@ pub struct App {
 
 impl App {
     fn new(engine: Engine) -> App {
-        let tabs = vec!["Subscriptions", "Stream", "Retain", "Statistics"]
+        let tabs = vec!["Subscriptions", "Stream", "Retain"]
             .iter()
             .map(|&s| String::from(s))
             .collect();
@@ -113,17 +113,6 @@ impl App {
             navigation: Navigation::default(),
         }
     }
-}
-
-pub fn draw_empty_tab<B>(
-    f: &mut tui::Frame<B>,
-    area: tui::layout::Rect,
-    _app: &App,
-    _format: MessageFormat,
-) where
-    B: tui::backend::Backend,
-{
-    Block::default().borders(Borders::ALL).render(f, area)
 }
 
 fn draw_tab_nav<B>(f: &mut Frame<B>, area: Rect, app: &App)
@@ -228,7 +217,6 @@ pub fn start_tui(
                 0 => draw_subscriptions_tab(&mut f, chunks[1], &app),
                 1 => draw_stream_tab(&mut f, chunks[1], &app, format_options),
                 2 => draw_retain_tab(&mut f, chunks[1], &app, format_options),
-                3 => draw_empty_tab(&mut f, chunks[1], &app, format_options),
                 _ => {}
             }
         })?;
