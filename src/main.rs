@@ -3,48 +3,46 @@ extern crate clap;
 extern crate colored;
 extern crate hex;
 
+use rumqtt::MqttClient;
 use std::io::{self, Write};
 
-use colored::Colorize;
-use rumqtt::{MqttClient, Notification, QoS};
-
 use crate::cli::parse_options;
-use crate::format::format_message;
+use crate::engine::Engine;
+use crate::format::{format_notification, MessageFormat};
+use crate::tui::start_tui;
 
 mod cli;
+mod engine;
 mod format;
+mod tui;
 
-fn main() {
-    let options = parse_options();
+fn start_stream(engine: Engine, format_options: MessageFormat) -> Result<(), failure::Error> {
+    for notification in engine.notifications {
+        let line = format_notification(format_options, &notification).to_color_string() + "\n";
+        io::stdout().write_all(line.as_bytes()).unwrap();
+        io::stdout().flush().unwrap();
+    }
+    Ok(())
+}
 
+fn main() -> Result<(), failure::Error> {
     let cli::Options {
         format: format_options,
         mqtt: mqtt_options,
-        topics,
-    } = options;
+        subscriptions,
+        tui,
+        mode,
+    } = parse_options();
 
-    let (mut client, notifications) = MqttClient::start(mqtt_options).unwrap();
+    let (client, notifications) = MqttClient::start(mqtt_options).unwrap();
 
-    for topic in topics.iter() {
-        client.subscribe(topic.as_str(), QoS::AtLeastOnce).unwrap();
-    }
+    let engine = Engine::new(notifications, client);
 
-    for notification in notifications {
-        match notification {
-            Notification::Publish(msg) => {
-                let line = format_message(format_options, &msg) + "\n";
-                io::stdout()
-                    .write_all(line.as_bytes())
-                    .unwrap();
-                io::stdout().flush();
-            }
-            Notification::Disconnection => {
-                println!("{}", "Disconnected!".red());
-            }
-            Notification::Reconnection => {
-                println!("{}", "Connected!".green());
-            }
-            _ => (),
-        }
+    engine.subscribe_all(subscriptions);
+
+    if tui {
+        start_tui(engine, format_options, mode)
+    } else {
+        start_stream(engine, format_options)
     }
 }

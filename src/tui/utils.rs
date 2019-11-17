@@ -1,0 +1,83 @@
+use std::io::{self};
+use std::sync::mpsc;
+use std::thread;
+use std::time::Duration;
+
+use rumqtt::Notification;
+use termion::event::Key;
+use termion::input::TermRead;
+
+pub enum Event {
+    Input(Key),
+    Tick,
+    MqttNotification(Notification),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Config {
+    pub tick_rate: Duration,
+}
+
+impl Default for Config {
+    fn default() -> Config {
+        Config {
+            tick_rate: Duration::from_millis(250),
+        }
+    }
+}
+
+impl Events {
+    pub fn new() -> Events {
+        Events::with_config(Config::default())
+    }
+
+    pub fn with_config(config: Config) -> Events {
+        let (tx, rx) = mpsc::channel();
+        let input_handle = {
+            let tx = tx.clone();
+            thread::spawn(move || {
+                let stdin = io::stdin();
+                for evt in stdin.keys() {
+                    if let Ok(key) = evt {
+                        if tx.send(Event::Input(key)).is_err() {
+                            return;
+                        }
+                    }
+                }
+            })
+        };
+        let tick_handle = {
+            let tx = tx.clone();
+            thread::spawn(move || {
+                let tx = tx.clone();
+                loop {
+                    tx.send(Event::Tick).unwrap();
+                    thread::sleep(config.tick_rate);
+                }
+            })
+        };
+        Events {
+            tx,
+            rx,
+            input_handle,
+            tick_handle,
+        }
+    }
+
+    pub fn next(&self) -> Result<Event, mpsc::RecvError> {
+        self.rx.recv()
+    }
+
+    pub fn tx(&self) -> mpsc::Sender<Event> {
+        self.tx.clone()
+    }
+}
+
+pub struct Events {
+    tx: mpsc::Sender<Event>,
+    rx: mpsc::Receiver<Event>,
+    #[allow(dead_code)]
+    input_handle: thread::JoinHandle<()>,
+    #[allow(dead_code)]
+    tick_handle: thread::JoinHandle<()>,
+}

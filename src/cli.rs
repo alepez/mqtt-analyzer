@@ -1,17 +1,42 @@
+use std::str::FromStr;
+
 use clap::{App, Arg};
 use rumqtt::{MqttOptions, SecurityOptions};
+use uuid::Uuid;
 
 use crate::format::{MessageFormat, PayloadFormat};
-use uuid::Uuid;
 
 fn generate_random_client_id() -> String {
     Uuid::new_v4().to_string()
 }
 
+pub enum Mode {
+    Subscriptions,
+    Stream,
+    Retained,
+    Statistics,
+}
+
+impl FromStr for Mode {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "subs" => Ok(Mode::Subscriptions),
+            "stream" => Ok(Mode::Stream),
+            "retained" => Ok(Mode::Retained),
+            "statistics" => Ok(Mode::Statistics),
+            _ => Err(()),
+        }
+    }
+}
+
 pub struct Options {
     pub mqtt: MqttOptions,
-    pub topics: Vec<String>,
+    pub subscriptions: Vec<String>,
     pub format: MessageFormat,
+    pub tui: bool,
+    pub mode: Mode,
 }
 
 pub fn parse_options() -> Options {
@@ -69,7 +94,19 @@ pub fn parse_options() -> Options {
             .value_name("FORMAT")
             .help("The format to use to show payload. If text is non valid utf8, it falls back to hex.")
             .takes_value(true)
-            .possible_values(&["hex", "base64", "text", "escape"])
+            .possible_values(&["hex", "base64", "text", "escape", "auto"])
+            .default_value("auto")
+        )
+        .arg(Arg::with_name("tui")
+            .long("tui")
+            .help("Enable Text User Interface")
+        )
+        .arg(Arg::with_name("mode")
+            .long("mode")
+            .help("Enable Text User Interface")
+            .takes_value(true)
+            .possible_values(&["subs", "stream", "retained", "stats"])
+            .default_value("subs")
         )
         .get_matches();
 
@@ -82,9 +119,9 @@ pub fn parse_options() -> Options {
     let client_id = matches
         .value_of("client_id")
         .map(str::to_string)
-        .unwrap_or(generate_random_client_id());
+        .unwrap_or_else(generate_random_client_id);
 
-    let topics: Vec<String> = matches
+    let subscriptions: Vec<String> = matches
         .values_of("topic")
         .map_or(vec![], |values| values.map(|s| s.to_string()).collect());
 
@@ -94,20 +131,26 @@ pub fn parse_options() -> Options {
         SecurityOptions::None
     };
 
-    let payload_format = match matches.value_of("format") {
-        Some("hex") => PayloadFormat::Hex,
-        Some("text") => PayloadFormat::Text,
-        Some("base64") => PayloadFormat::Base64,
-        Some("escape") => PayloadFormat::Escape,
-        _ => PayloadFormat::Hex,
-    };
+    let payload_format = matches
+        .value_of("format")
+        .and_then(|s| s.parse::<PayloadFormat>().ok())
+        .unwrap_or(PayloadFormat::Hex);
+
+    let mode = matches
+        .value_of("mode")
+        .and_then(|s| s.parse::<Mode>().ok())
+        .unwrap_or(Mode::Subscriptions);
+
+    let tui = matches.is_present("tui");
 
     let mut message_format = MessageFormat::default();
     message_format.payload_format = payload_format;
 
     Options {
         mqtt: MqttOptions::new(client_id, hostname, port).set_security_opts(security_options),
-        topics,
+        subscriptions,
         format: message_format,
+        tui,
+        mode,
     }
 }
