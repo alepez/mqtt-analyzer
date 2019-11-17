@@ -13,12 +13,13 @@ use tui::layout::{Constraint, Direction, Layout, Rect};
 use tui::style::{Color, Style};
 use tui::widgets::{Block, Borders, Tabs, Widget};
 use tui::{Frame, Terminal};
-
 use utils::{Event, Events};
 
+use crate::cli::Mode;
 use crate::engine::Engine;
 use crate::format::MessageFormat;
 
+use self::navigation::{BlockId, Navigation};
 use self::retain::draw_retain_tab;
 use self::stream::draw_stream_tab;
 use self::style::get_color;
@@ -27,8 +28,8 @@ use self::subscriptions::{
     handle_input_on_subscriptions_list_item,
 };
 use self::tabs::TabsState;
-use crate::cli::Mode;
 
+mod navigation;
 mod notification_list;
 mod retain;
 mod stream;
@@ -36,55 +37,6 @@ mod style;
 mod subscriptions;
 mod tabs;
 mod utils;
-
-#[derive(Clone, Copy, PartialEq, Debug)]
-pub enum BlockId {
-    Root,
-    SubscriptionsWindow,
-    TabNav,
-    SubscribeInput,
-    SubscriptionsList,
-    SubscriptionsListItem(usize),
-}
-
-struct Navigation(Vec<BlockId>);
-
-impl Navigation {
-    fn default() -> Navigation {
-        let mut nav = Vec::new();
-        nav.push(BlockId::Root);
-        nav.push(BlockId::SubscriptionsWindow);
-        nav.push(BlockId::TabNav);
-        Navigation(nav)
-    }
-
-    fn push(&mut self, block_id: BlockId) {
-        self.0.push(block_id);
-    }
-
-    fn peek(&self) -> BlockId {
-        self.0.last().cloned().unwrap_or(BlockId::Root)
-    }
-
-    fn parent(&self) -> BlockId {
-        if self.0.len() < 2 {
-            BlockId::Root
-        } else {
-            self.0
-                .get(self.0.len() - 2)
-                .cloned()
-                .unwrap_or(BlockId::Root)
-        }
-    }
-
-    fn pop(&mut self) {
-        self.0.pop();
-    }
-
-    fn modify_top(&mut self, new_value: BlockId) {
-        *self.0.last_mut().unwrap() = new_value
-    }
-}
 
 type RetainedMessages = BTreeMap<String, Notification>;
 

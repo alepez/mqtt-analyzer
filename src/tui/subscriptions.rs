@@ -6,8 +6,9 @@ use tui::widgets::{Block, Borders, Paragraph, SelectableList, Text, Widget};
 use tui::Frame;
 
 use crate::engine;
+use crate::tui::navigation::BlockId;
 use crate::tui::style::get_color;
-use crate::tui::{App, BlockId};
+use crate::tui::App;
 
 fn draw_subscribe_input<B>(f: &mut Frame<B>, area: Rect, app: &App)
 where
