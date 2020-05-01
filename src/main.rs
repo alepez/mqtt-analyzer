@@ -35,6 +35,10 @@ fn main() -> Result<(), failure::Error> {
         mode,
     } = parse_options();
 
+    let mqtt_options = mqtt_options
+        .set_request_channel_capacity(1000)
+        .set_notification_channel_capacity(1000);
+
     let (client, notifications) = MqttClient::start(mqtt_options).unwrap();
 
     let engine = Engine::new(notifications, client);
